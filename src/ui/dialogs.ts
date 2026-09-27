@@ -206,6 +206,7 @@ export function openCheckInDialog(): void {
       checkinDialogInstance = null;
     },
   });
+  checkinDialogInstance = dialog;
 
   const grid = dialog.element.querySelector("#mood-checkin-grid") as HTMLElement | null;
   const weatherGrid = dialog.element.querySelector("#mood-checkin-weather") as HTMLElement | null;
