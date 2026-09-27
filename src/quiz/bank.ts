@@ -1,4 +1,4 @@
-/** 内置题库：24 题，全部只问「此刻」 */
+/** 内置题库：25 道选择题 + 2 道收尾填空，全部只问「此刻」 */
 import type { QuizQuestion } from "@/types/mood";
 
 /** 内置题都带 source / enabled，写题库时不必重复 */
@@ -350,5 +350,25 @@ export const BUILTIN_QUESTIONS: QuizQuestion[] = [
       { id: "C", label: "一句话安慰", tags: ["需要安慰"] },
       { id: "D", label: "暂时不用帮助", tags: ["状态良好"] },
     ],
+  }),
+
+  // **************************************** 收尾填空 ****************************************
+  // 前面的题都是选项，最后留两道自己说的：既能让 AI 拿到语言层面的信息，
+  // 也常常是用户第一次把状态写下来。不计分，不想写就留空。
+  q({
+    id: "self-1",
+    dimension: "need",
+    type: "text",
+    weight: 1,
+    text: "自己感觉目前是什么状态？",
+    options: [],
+  }),
+  q({
+    id: "self-2",
+    dimension: "need",
+    type: "text",
+    weight: 1,
+    text: "可能是什么事情影响的？简单描述下",
+    options: [],
   }),
 ];

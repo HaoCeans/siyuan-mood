@@ -8,18 +8,18 @@ import {
 } from "@/types/mood";
 import { average } from "@/utils/dom";
 
-/** 把一次作答落成快照（题干与选项文案都存下来） */
-export function buildAnswer(question: QuizQuestion, optionIds: string[]): QuizAnswer {
+/** 把一次作答落成快照（题干与选项文案都存下来）；填空题传 text */
+export function buildAnswer(question: QuizQuestion, optionIds: string[], text?: string): QuizAnswer {
   const picked = question.options.filter((o) => optionIds.includes(o.id));
   const meta = DIMENSION_MAP[question.dimension];
-  // 不计分维度（当下需求）记 -1，避免和「真实得 0 分」混淆
-  const score = !meta?.scored
+  // 不计分维度与填空记 -1，避免和「真实得 0 分」混淆
+  const score = question.type === "text" || !meta?.scored
     ? -1
     : picked.length
       ? average(picked.map((o) => o.score ?? 0))
       : 0;
 
-  return {
+  const answer: QuizAnswer = {
     questionId: question.id,
     questionText: question.text,
     dimension: question.dimension,
@@ -29,6 +29,14 @@ export function buildAnswer(question: QuizQuestion, optionIds: string[]): QuizAn
     score: Number(score.toFixed(2)),
     tags: Array.from(new Set(picked.flatMap((o) => o.tags || []))),
   };
+  const trimmed = (text || "").trim();
+  if (trimmed) answer.text = trimmed;
+  return answer;
+}
+
+/** 作答在界面上的显示文字：填空题用自己的话，其它用选项 */
+export function answerText(answer: QuizAnswer): string {
+  return answer.text || answer.optionLabels.join("、") || "—";
 }
 
 export interface ScoreSummary {

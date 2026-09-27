@@ -55,6 +55,15 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/** 拼 HTML 片段时用，避免题干里的尖括号把结构冲坏 */
+export function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 export function average(list: number[]): number {
   if (!list.length) return 0;
   return list.reduce((a, b) => a + b, 0) / list.length;

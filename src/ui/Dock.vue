@@ -12,7 +12,11 @@
 
       <div class="mood-header__side">
         <div class="mood-header__hint">
-          {{ hint }}
+          <span
+            v-if="state.aiRunning || !state.ready"
+            class="mood-dots"
+            style="margin-right: 6px"
+          ><i /><i /><i /></span>{{ hint }}
         </div>
         <div class="mood-btn-group">
           <button
@@ -20,6 +24,13 @@
             @click="startQuiz"
           >
             {{ t('startQuiz') }}
+          </button>
+          <button
+            class="mood-btn mood-btn--tonal"
+            :title="t('checkinHint')"
+            @click="openCheckInDialog"
+          >
+            {{ t('checkinButton') }}
           </button>
           <button
             v-if="state.reminderDue"
@@ -49,8 +60,11 @@
 
     <div class="mood-body">
       <template v-if="!state.ready">
-        <div class="mood-loading">
-          {{ t('loading') }}
+        <div class="mood-thinking">
+          <div class="mood-thinking__line">
+            <span class="mood-dots"><i /><i /><i /></span>
+            <span>{{ t('loading') }}</span>
+          </div>
         </div>
       </template>
       <template v-else-if="state.detailId">
@@ -62,13 +76,51 @@
       </template>
       <template v-else-if="state.tab === 'records'">
         <div
+          v-if="records.length"
+          class="mood-count-row"
+        >
+          <span class="mood-count">{{ t('recordsCount').replace('{n}', String(records.length)) }}</span>
+          <span class="spacer" style="flex: 1" />
+          <select
+            v-model="sortKey"
+            class="mood-select mood-count__sort"
+            :title="t('sortTitle')"
+          >
+            <option value="newest">
+              {{ t('sortNewest') }}
+            </option>
+            <option value="oldest">
+              {{ t('sortOldest') }}
+            </option>
+            <option value="scoreLow">
+              {{ t('sortScoreLow') }}
+            </option>
+            <option value="scoreHigh">
+              {{ t('sortScoreHigh') }}
+            </option>
+          </select>
+        </div>
+        <input
+          v-if="records.length"
+          v-model="searchText"
+          class="mood-input mood-search"
+          type="text"
+          :placeholder="t('searchPlaceholder')"
+        >
+        <div
           v-if="!records.length"
           class="mood-empty"
         >
           {{ t('noRecordHint') }}
         </div>
+        <div
+          v-else-if="!sortedView.length"
+          class="mood-empty"
+        >
+          {{ t('searchNoMatch') }}
+        </div>
         <RecordCard
-          v-for="record in records"
+          v-for="record in sortedView"
           :key="record.id"
           :record="record"
           @open="openRecord"
@@ -82,6 +134,11 @@
     </div>
 
     <div class="mood-footer">
+      <span
+        v-if="lastCheckin"
+        class="mood-chip mood-chip--muted"
+        :title="t('checkinLatest')"
+      >{{ lastCheckin.word }} · {{ lastCheckinTime }}</span>
       <span>{{ nextText }}</span>
       <span class="spacer" style="flex: 1" />
       <button
@@ -95,16 +152,18 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { t, getPlugin } from '@/plugin'
 import RecordCard from '@/ui/RecordCard.vue'
 import RecordDetail from '@/ui/RecordDetail.vue'
 import RecordTable from '@/ui/RecordTable.vue'
 import StatsView from '@/ui/StatsView.vue'
 import { moodLevel } from '@/quiz/score'
-import { latestRecord, sortedRecords, state, type ViewTab } from '@/store'
+import { latestRecord, latestCheckIn, sortedRecords, state, type ViewTab } from '@/store'
 import { computeInterval, daysUntilDue, nextDueAt } from '@/stats/interval'
-import { openQuizDialog } from '@/ui/dialogs'
+import { openQuizDialog, openCheckInDialog } from '@/ui/dialogs'
+import { formatTime } from '@/utils/dom'
+import type { QuizRecord } from '@/types/mood'
 
 const tabs: { key: ViewTab; label: string }[] = [
   { key: 'records', label: t('tabRecords') },
@@ -113,8 +172,36 @@ const tabs: { key: ViewTab; label: string }[] = [
 ]
 
 const records = computed(() => sortedRecords())
+type SortKey = 'newest' | 'oldest' | 'scoreLow' | 'scoreHigh'
+const sortKey = ref<SortKey>('newest')
+const searchText = ref('')
+/** 记录列表的展示顺序：默认最近优先；低分在前方便回头照顾状态差的那几天 */
+const sortedView = computed(() => {
+  let list = records.value.slice()
+  if (sortKey.value === 'oldest') list.reverse()
+  else if (sortKey.value === 'scoreLow') list.sort((a, b) => a.moodScore - b.moodScore)
+  else if (sortKey.value === 'scoreHigh') list.sort((a, b) => b.moodScore - a.moodScore)
+  const query = searchText.value.trim().toLowerCase()
+  if (query) list = list.filter((record) => recordMatches(record, query))
+  return list
+})
+
+/** 搜：情绪名、关键词、身体信号、自述、备注、作答原文 */
+function recordMatches(record: QuizRecord, query: string): boolean {
+  const hay = [
+    record.moodName || '',
+    ...(record.ai.keywords || []),
+    ...record.keywordLocal,
+    ...(record.signals || []),
+    record.note || '',
+    ...record.answers.flatMap((answer) => [answer.questionText, ...answer.optionLabels, answer.text || '']),
+  ].join('\n').toLowerCase()
+  return hay.includes(query)
+}
 const latest = computed(() => latestRecord())
 const level = computed(() => moodLevel(latest.value?.moodScore ?? 0))
+const lastCheckin = computed(() => latestCheckIn())
+const lastCheckinTime = computed(() => (lastCheckin.value ? formatTime(lastCheckin.value.at) : ''))
 
 const hint = computed(() => {
   if (!latest.value) return t('firstTimeHint')

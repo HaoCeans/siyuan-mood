@@ -77,8 +77,12 @@ function interleave(questions: QuizQuestion[]): QuizQuestion[] {
 export function pickQuestions(pool: QuizQuestion[], options: PickOptions): PickResult {
   const count = Math.max(1, Math.floor(options.count || 10));
   const tolerance = options.tolerance ?? 0.5;
-  const usable = pool.filter((q) => q.enabled !== false && q.options.length >= 2);
-  if (!usable.length) return { questions: [], note: "题库为空" };
+  const usable = pool.filter((q) => q.enabled !== false && q.type !== "text" && q.options.length >= 2);
+  // 填空题不参与抽题，固定放在最后：它没有选项，重复率也谈不上
+  const closing = pool.filter((q) => q.enabled !== false && q.type === "text");
+  if (!usable.length) {
+    return { questions: closing, note: closing.length ? "题库里只有填空题" : "题库为空" };
+  }
 
   const target = Math.min(count, usable.length);
   let picked = stratify(usable, target);
@@ -105,7 +109,7 @@ export function pickQuestions(pool: QuizQuestion[], options: PickOptions): PickR
   }
 
   return {
-    questions: interleave(picked),
+    questions: [...interleave(picked), ...closing],
     note: target < count ? `题库不足，本次 ${target} 题` : undefined,
   };
 }

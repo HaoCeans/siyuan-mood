@@ -5,6 +5,27 @@
     preserveAspectRatio="none"
     :style="{ height: `${H}px` }"
   >
+    <defs>
+      <linearGradient
+        id="mood-area-grad"
+        x1="0"
+        y1="0"
+        x2="0"
+        y2="1"
+      >
+        <stop
+          offset="0%"
+          stop-color="var(--b3-theme-primary)"
+          stop-opacity="0.22"
+        />
+        <stop
+          offset="100%"
+          stop-color="var(--b3-theme-primary)"
+          stop-opacity="0"
+        />
+      </linearGradient>
+    </defs>
+
     <!-- 网格与刻度 -->
     <g>
       <template
@@ -26,7 +47,13 @@
       </template>
     </g>
 
-    <!-- 折线 -->
+    <!-- 渐变面积 + 折线 -->
+    <path
+      v-if="areaPath"
+      :d="areaPath"
+      fill="url(#mood-area-grad)"
+      stroke="none"
+    />
     <path
       v-if="points.length > 1"
       class="series"
@@ -38,31 +65,29 @@
       :d="avgPath"
     />
 
-    <!-- 数据点 -->
+    <!-- 数据点：颜色即状态 -->
     <circle
       v-for="(point, i) in points"
       :key="point.id"
       class="dot"
       :cx="x(i)"
       :cy="y(point.score)"
-      r="2.6"
+      r="2.8"
+      :fill="dotColor(point.score)"
+      :stroke="'var(--b3-theme-surface)'"
+      stroke-width="1"
     >
       <title>{{ tooltip(point) }}</title>
     </circle>
 
-    <!-- 首尾日期 -->
+    <!-- 横轴日期刻度：约 4 个 -->
     <text
-      v-if="points.length"
-      :x="PAD.l"
+      v-for="tick in dateTicks"
+      :key="`d-${tick.index}`"
+      :x="x(tick.index)"
       :y="H - 4"
-      text-anchor="start"
-    >{{ dayLabel(points[0].at) }}</text>
-    <text
-      v-if="points.length > 1"
-      :x="W - PAD.r"
-      :y="H - 4"
-      text-anchor="end"
-    >{{ dayLabel(points[points.length - 1].at) }}</text>
+      :text-anchor="tick.anchor"
+    >{{ tick.label }}</text>
   </svg>
 </template>
 
@@ -75,9 +100,9 @@ import { moodLevel } from '@/quiz/score'
 const props = defineProps<{ points: MoodPoint[]; averages?: number[] }>()
 
 const W = 320
-const H = 140
+const H = 150
 const PAD = { l: 24, r: 8, t: 10, b: 18 }
-const ticks = [100, 75, 50, 25, 0]
+const ticks = [100, 50, 0]
 
 function x(index: number): number {
   const usable = W - PAD.l - PAD.r
@@ -94,14 +119,31 @@ const linePath = computed(() =>
   props.points.map((point, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(point.score).toFixed(1)}`).join(' '),
 )
 
+const areaPath = computed(() => {
+  if (props.points.length < 2) return ''
+  const base = H - PAD.b
+  return `${linePath.value} L${x(props.points.length - 1).toFixed(1)},${base} L${x(0).toFixed(1)},${base} Z`
+})
+
 const avgPath = computed(() => {
   const list = props.averages || []
   if (list.length !== props.points.length) return ''
   return list.map((value, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(value).toFixed(1)}`).join(' ')
 })
 
-function dayLabel(at: number): string {
-  return formatMonthDay(at)
+const dateTicks = computed(() => {
+  const n = props.points.length
+  if (n < 2) return []
+  const anchors = ['start', 'middle', 'middle', 'end']
+  return [0, Math.round((n - 1) / 3), Math.round(((n - 1) * 2) / 3), n - 1].map((index, i) => ({
+    index,
+    label: formatMonthDay(props.points[index].at),
+    anchor: anchors[i],
+  }))
+})
+
+function dotColor(score: number): string {
+  return moodLevel(score).color
 }
 
 function tooltip(point: MoodPoint): string {

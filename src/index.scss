@@ -31,7 +31,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: var(--b3-border-radius-b);
   background: var(--b3-theme-surface);
   border: 1px solid var(--b3-border-color);
@@ -43,7 +43,7 @@
   align-items: center;
   justify-content: center;
   min-width: 58px;
-  padding: 6px 8px;
+  padding: 8px 10px;
   border-radius: var(--b3-border-radius-b);
   cursor: pointer;
   transition: transform 0.15s ease;
@@ -73,7 +73,7 @@
 }
 
 .mood-header__hint {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--b3-theme-on-surface);
   word-break: break-word;
 }
@@ -87,7 +87,7 @@
 .mood-tab {
   flex: 1;
   text-align: center;
-  padding: 4px 0;
+  padding: 5px 0;
   font-size: 12px;
   border-radius: var(--b3-border-radius);
   cursor: pointer;
@@ -129,37 +129,26 @@
 
 .mood-card {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
   padding: 10px 12px;
   border-radius: var(--b3-border-radius-b);
   background: var(--b3-theme-surface);
   border: 1px solid var(--b3-border-color);
+  // 左侧色条代替原来的圆点：颜色即状态，扫一眼就能分区
+  border-left: 3px solid var(--b3-border-color);
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease;
 
   &:hover {
     border-color: var(--b3-theme-primary);
+    border-left-color: var(--b3-theme-primary);
     background: var(--b3-list-hover);
-  }
-
-  &__dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex: none;
-    margin-top: 7px;
-  }
-
-  &__main {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
   }
 
   &__top {
     display: flex;
+    justify-content: space-between;
     align-items: baseline;
     gap: 8px;
   }
@@ -167,14 +156,22 @@
   &__time {
     font-size: 12px;
     color: var(--b3-theme-on-surface);
+    font-variant-numeric: tabular-nums;
   }
 
   &__score {
-    font-weight: 600;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.1;
+    white-space: nowrap;
   }
 
   &__level {
     font-size: 12px;
+    font-weight: 500;
     opacity: 0.85;
   }
 
@@ -198,6 +195,25 @@
   }
 }
 
+.mood-count {
+  font-size: 12px;
+  color: var(--b3-theme-on-surface);
+  padding: 0 2px;
+}
+
+.mood-count-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px;
+
+  .mood-count__sort {
+    margin-left: auto;
+    height: 26px;
+    font-size: 12px;
+  }
+}
+
 .mood-chips {
   display: flex;
   flex-wrap: wrap;
@@ -207,9 +223,10 @@
 .mood-chip {
   display: inline-flex;
   align-items: center;
-  padding: 0 6px;
-  height: 20px;
-  border-radius: 10px;
+  gap: 5px;
+  padding: 0 7px;
+  height: 22px;
+  border-radius: 11px;
   font-size: 12px;
   line-height: 1;
   background: var(--b3-theme-primary-lightest);
@@ -249,15 +266,6 @@
   color: var(--b3-theme-on-surface);
 }
 
-.mood-loading {
-  padding: 10px 0;
-  font-size: 13px;
-  color: var(--b3-theme-on-surface);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
 // **************************************** 按钮 ****************************************
 
 .mood-btn {
@@ -265,10 +273,10 @@
   background: var(--b3-theme-surface);
   color: var(--b3-theme-on-background);
   border-radius: var(--b3-border-radius);
-  padding: 0 10px;
-  height: 26px;
-  font-size: 12px;
-  line-height: 24px;
+  padding: 0 12px;
+  height: 28px;
+  font-size: 13px;
+  line-height: 26px;
   cursor: pointer;
   white-space: nowrap;
 
@@ -288,6 +296,20 @@
     color: var(--b3-theme-on-primary);
   }
 
+  // 次级强调：浅主题色底 + 主题色文字，和实心的主按钮区分
+  &--tonal {
+    background: var(--b3-theme-primary-lightest);
+    border-color: transparent;
+    color: var(--b3-theme-primary);
+    font-weight: 600;
+
+    &:hover {
+      background: var(--b3-theme-primary-light);
+      border-color: transparent;
+      color: var(--b3-theme-on-primary);
+    }
+  }
+
   &--ghost {
     border-color: transparent;
     background: transparent;
@@ -296,8 +318,8 @@
 
   &--block {
     width: 100%;
-    height: 30px;
-    line-height: 28px;
+    height: 32px;
+    line-height: 30px;
   }
 }
 
@@ -354,6 +376,268 @@
   gap: 8px;
 }
 
+// 收尾填空题的输入框
+.mood-quiz__text {
+  min-height: 140px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+// 收尾一步：情绪命名 + 身体信号
+.mood-closing {
+  &__chips {
+    gap: 6px;
+  }
+
+  &__chip {
+    height: 30px;
+    padding: 0 12px;
+    border-radius: 15px;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid var(--b3-border-color);
+    background: var(--b3-theme-surface);
+
+    &:hover {
+      border-color: var(--b3-theme-primary);
+    }
+
+    &--picked {
+      background: var(--b3-theme-primary);
+      border-color: var(--b3-theme-primary);
+      color: var(--b3-theme-on-primary);
+    }
+  }
+
+  &__signals {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 4px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--b3-border-color);
+  }
+}
+
+// Blob 图标：所有用到文字 emoji 的地方都换成它
+.mood-emoji-img {
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: -0.22em;
+  border-radius: 0;
+}
+
+.mood-cal__emojis img.mood-emoji-img {
+  width: 13px;
+  height: 13px;
+  vertical-align: bottom;
+}
+
+.mood-weather-chip img.mood-emoji-img {
+  width: 1.35em;
+  height: 1.35em;
+  vertical-align: -0.28em;
+}
+
+// 关联的思源块预览
+.mood-block-preview {
+  background: var(--b3-theme-surface-lighter);
+  border-radius: var(--b3-border-radius);
+  padding: 8px 10px;
+  max-height: 200px;
+  overflow: auto;
+
+  &__id {
+    font-family: monospace;
+    font-size: 11px;
+    opacity: 0.7;
+    margin-bottom: 4px;
+    word-break: break-all;
+  }
+}
+
+// 打卡弹窗：天气 chip（图标 + 中文）
+.mood-weather-chip {
+  height: 30px;
+  padding: 0 12px;
+  font-size: 13px;
+
+  img.mood-emoji-img {
+    width: 16px;
+    height: 16px;
+    vertical-align: -0.25em;
+    margin-right: 2px;
+  }
+}
+
+// 记录列表的搜索框
+.mood-search {
+  margin-top: 0;
+  min-height: 30px;
+  font-size: 13px;
+}
+
+// 打卡后的小建议区
+.mood-suggest {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--b3-border-color);
+
+  &__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--b3-theme-on-background);
+    margin-bottom: 4px;
+  }
+}
+
+// 紧凑版 Markdown（打卡小建议用）：单行短文本，不缩进、不两端对齐
+.mood-md--compact {
+  font-size: 13px;
+  line-height: 1.65;
+  text-align: left;
+
+  p {
+    margin: 0;
+    text-indent: 0;
+  }
+}
+
+// 快速打卡的词网格
+.mood-checkin-grid {
+  margin-top: 10px;
+
+  .mood-chip {
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 17px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+}
+
+// 打卡弹窗：自定义输入 + 保存按钮
+.mood-checkin-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 10px;
+}
+
+#mood-checkin-custom {
+  margin-top: 12px;
+}
+
+// 打卡区：家族比例条 + 图例
+.mood-share {
+  &__bar {
+    display: flex;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    background: var(--b3-theme-surface-lighter);
+
+    > span {
+      min-width: 6px;
+
+      &:not(:last-child) {
+        margin-right: 2px;
+      }
+
+      &:last-child {
+        border-radius: 0 5px 5px 0;
+      }
+
+      &:first-child {
+        border-radius: 5px 0 0 5px;
+      }
+    }
+  }
+
+  &__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 14px;
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--b3-theme-on-surface);
+  }
+
+  &__item {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+
+    i {
+      width: 8px;
+      height: 8px;
+      border-radius: 2px;
+      flex: none;
+    }
+
+    b {
+      font-weight: 600;
+      color: var(--b3-theme-on-background);
+      font-variant-numeric: tabular-nums;
+    }
+  }
+}
+
+// 打卡带：每天一根圆角轨道，一天内的记录从下往上按时间排
+.mood-strip {
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+  overflow-x: auto;
+  padding-bottom: 2px;
+
+  &__col {
+    flex: 1;
+    min-width: 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__track {
+    width: 100%;
+    max-width: 20px;
+    height: 42px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 2px;
+    padding: 3px 0;
+    background: var(--b3-theme-surface-lighter);
+    border-radius: 10px;
+    overflow: hidden;
+    box-sizing: border-box;
+
+    &--today {
+      background: var(--b3-theme-primary-lightest);
+    }
+  }
+
+  &__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex: none;
+  }
+
+  &__label {
+    font-size: 10px;
+    color: var(--b3-theme-on-surface);
+    white-space: nowrap;
+
+    &--today {
+      color: var(--b3-theme-primary);
+      font-weight: 600;
+    }
+  }
+}
+
 .mood-option {
   display: flex;
   align-items: flex-start;
@@ -402,7 +686,8 @@
 
   &__text {
     flex: 1;
-    font-size: 13px;
+    font-size: 14px;
+    line-height: 1.6;
   }
 }
 
@@ -419,21 +704,21 @@
 .mood-detail {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .mood-section {
   border: 1px solid var(--b3-border-color);
   border-radius: var(--b3-border-radius-b);
-  padding: 10px 12px;
+  padding: 12px 14px;
   background: var(--b3-theme-surface);
 }
 
 .mood-section__title {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
-  color: var(--b3-theme-on-surface);
-  margin-bottom: 6px;
+  color: var(--b3-theme-on-background);
+  margin-bottom: 8px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -460,27 +745,169 @@
   }
 
   &__a {
+    font-size: 14px;
+    line-height: 1.7;
+  }
+}
+
+// 解读区的状态标题：左侧主题色竖条
+.mood-status {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.55;
+  padding-left: 10px;
+  border-left: 3px solid var(--b3-theme-primary);
+}
+
+// 解读区的子小节（变化 / 看到了什么 / 练习……），之间用虚线分隔
+.mood-sub {
+  margin-top: 12px;
+
+  & + .mood-sub {
+    border-top: 1px dashed var(--b3-border-color);
+    padding-top: 10px;
+  }
+
+  &__label {
     font-size: 13px;
+    font-weight: 600;
+    color: var(--b3-theme-on-background);
+    margin-bottom: 5px;
+    letter-spacing: 0.03em;
   }
 }
 
 .mood-md {
-  font-size: 13px;
+  font-size: 15px;
+  line-height: 1.85;
+  word-break: break-word;
+  // 中文阅读习惯：两端对齐 + 段首缩进两字
+  text-align: justify;
 
   p {
-    margin: 0 0 6px;
+    margin: 0 0 8px;
+    text-indent: 2em;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  h3,
+  h4,
+  h5 {
+    margin: 14px 0 6px;
+    font-weight: 600;
+    line-height: 1.4;
+
+    &:first-child {
+      margin-top: 0;
+    }
+  }
+
+  h3 {
+    font-size: 16px;
+  }
+
+  h4 {
+    font-size: 15px;
+  }
+
+  h5 {
+    font-size: 14px;
+  }
+
+  // 加粗带一层主题色荧光，让 AI 强调的重点一眼可见
+  strong {
+    font-weight: 600;
+    background: linear-gradient(transparent 62%, var(--b3-theme-primary-lightest) 62%);
+    padding: 0 1px;
+  }
+
+  em {
+    color: var(--b3-theme-on-surface);
+  }
+
+  mark {
+    background: var(--b3-card-warning-background);
+    color: var(--b3-card-warning-color);
+    padding: 0 3px;
+    border-radius: 3px;
+  }
+
+  u {
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1.5px;
+  }
+
+  del {
+    color: var(--b3-theme-on-surface);
+    opacity: 0.7;
   }
 
   ul,
   ol {
-    margin: 0 0 6px;
-    padding-left: 20px;
+    margin: 0 0 10px;
+    padding-left: 24px;
+  }
+
+  li {
+    margin: 5px 0;
+  }
+
+  ul li::marker,
+  ol li::marker {
+    color: var(--b3-theme-primary);
   }
 
   code {
+    font-size: 13px;
     background: var(--b3-theme-surface-lighter);
     border-radius: 3px;
-    padding: 0 3px;
+    padding: 1px 5px;
+  }
+
+  pre {
+    background: var(--b3-theme-surface-lighter);
+    border-radius: var(--b3-border-radius);
+    padding: 8px 10px;
+    overflow: auto;
+    margin: 0 0 8px;
+
+    code {
+      padding: 0;
+      background: none;
+    }
+  }
+
+  blockquote {
+    margin: 0 0 8px;
+    padding: 2px 10px;
+    border-left: 3px solid var(--b3-border-color);
+    color: var(--b3-theme-on-surface);
+  }
+
+  hr {
+    border: none;
+    border-top: 1px dashed var(--b3-border-color);
+    margin: 10px 0;
+  }
+}
+
+.mood-review-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--b3-theme-on-background);
+  margin-bottom: 4px;
+}
+
+// 复盘里的清单：不用 mood-md 的标题间距，紧凑一些
+.mood-review-list {
+  margin: 0;
+  padding-left: 24px;
+
+  li {
+    margin: 6px 0;
   }
 }
 
@@ -493,14 +920,15 @@
 .mood-advice__item {
   border: 1px solid var(--b3-border-color);
   border-radius: var(--b3-border-radius);
-  padding: 8px 10px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
 .mood-advice__text {
-  font-size: 13px;
+  font-size: 14px;
+  line-height: 1.7;
   display: flex;
   gap: 6px;
 
@@ -524,15 +952,15 @@
   gap: 4px;
 
   > span {
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
     border: 1px solid var(--b3-border-color);
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 13px;
 
     &:hover {
       border-color: var(--b3-theme-primary);
@@ -549,8 +977,8 @@
 .mood-input {
   width: 100%;
   box-sizing: border-box;
-  min-height: 30px;
-  padding: 4px 8px;
+  min-height: 32px;
+  padding: 5px 8px;
   border: 1px solid var(--b3-border-color);
   border-radius: var(--b3-border-radius);
   background: var(--b3-theme-background);
@@ -569,23 +997,25 @@
 .mood-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  gap: 10px;
 }
 
 .mood-metric {
   border: 1px solid var(--b3-border-color);
   border-radius: var(--b3-border-radius-b);
-  padding: 8px 10px;
+  padding: 12px 14px;
   background: var(--b3-theme-surface);
 
   &__value {
     font-size: 18px;
     font-weight: 600;
-    line-height: 1.2;
+    line-height: 1.25;
   }
 
   &__label {
+    margin-top: 3px;
     font-size: 12px;
+    line-height: 1.5;
     color: var(--b3-theme-on-surface);
   }
 }
@@ -646,21 +1076,90 @@
   }
 }
 
-.mood-heat {
-  display: flex;
-  gap: 2px;
-
-  &__col {
+// 心情日历：真实的月历，一天一格，可切换月份
+.mood-cal {
+  &__nav {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  &__nav-btn {
+    width: 26px;
+    height: 24px;
+    padding: 0;
+    line-height: 22px;
+    font-size: 16px;
+    text-align: center;
+  }
+
+  &__title {
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 86px;
+    text-align: center;
+  }
+
+  &__today {
+    height: 24px;
+    line-height: 22px;
+    font-size: 11px;
+    margin-left: auto;
+  }
+
+  &__head,
+  &__grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+  }
+
+  &__head span {
+    text-align: center;
+    font-size: 10px;
+    color: var(--b3-theme-on-surface);
+    line-height: 1.4;
   }
 
   &__cell {
-    width: 10px;
-    height: 10px;
-    border-radius: 2px;
+    aspect-ratio: 1;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1px;
+    padding: 2px;
+    box-sizing: border-box;
     background: var(--b3-theme-surface-lighter);
+    color: var(--b3-theme-on-surface);
+    font-size: 11px;
+    cursor: default;
+
+    // 没记录的格子数字居中即可
+    &:not(:has(.mood-cal__emojis)) {
+      flex-direction: row;
+    }
+  }
+
+  &__cell--open {
+    cursor: pointer;
+
+    &:hover {
+      outline: 1px solid var(--b3-theme-primary);
+    }
+  }
+
+  &__emojis {
+    font-size: 11px;
+    line-height: 1;
+    letter-spacing: -1px;
+  }
+
+  &__day {
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
   }
 }
 
@@ -706,6 +1205,66 @@
   }
 }
 
+// 星期分布
+.mood-weekday {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+
+  &__col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  &__track {
+    width: 100%;
+    max-width: 18px;
+    height: 48px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: var(--b3-theme-surface-lighter);
+    border-radius: 4px 4px 2px 2px;
+    overflow: hidden;
+  }
+
+  &__bar {
+    width: 100%;
+    border-radius: 3px 3px 0 0;
+    transition: height 0.2s ease;
+  }
+
+  &__label {
+    font-size: 11px;
+    color: var(--b3-theme-on-surface);
+
+    &--today {
+      color: var(--b3-theme-primary);
+      font-weight: 600;
+    }
+  }
+
+  &__count {
+    font-size: 10px;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.7;
+    min-height: 12px;
+    line-height: 1;
+  }
+}
+
+// 表格：圆角卡片容器 + 斑马行 + 徽章化分数
+.mood-table-card {
+  border: 1px solid var(--b3-border-color);
+  border-radius: var(--b3-border-radius-b);
+  background: var(--b3-theme-background);
+  overflow: auto;
+}
+
 .mood-table {
   width: 100%;
   border-collapse: collapse;
@@ -714,8 +1273,7 @@
   th,
   td {
     text-align: left;
-    padding: 4px 6px;
-    border-bottom: 1px solid var(--b3-border-color);
+    padding: 7px 10px;
     white-space: nowrap;
   }
 
@@ -724,11 +1282,200 @@
     font-weight: 600;
     position: sticky;
     top: 0;
-    background: var(--b3-theme-background);
+    z-index: 1;
+    background: var(--b3-theme-surface);
+    border-bottom: 2px solid var(--b3-border-color);
   }
 
-  tbody tr:hover {
+  tbody td {
+    border-bottom: 1px solid var(--b3-border-color);
+  }
+
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:nth-child(even) td {
+    background: var(--b3-theme-surface-lighter);
+  }
+
+  tbody tr {
+    cursor: pointer;
+  }
+
+  tbody tr:hover td {
     background: var(--b3-list-hover);
+  }
+
+  // 日期与分数等宽对齐，上下行能竖着读
+  &__num {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.mood-score-pill {
+  display: inline-block;
+  min-width: 30px;
+  text-align: center;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.mood-cell-text {
+  display: inline-block;
+  max-width: 130px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+
+  img.mood-emoji-img {
+    margin-right: 3px;
+  }
+}
+
+.mood-followbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  &__track {
+    width: 44px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--b3-theme-surface-lighter);
+    overflow: hidden;
+    flex: none;
+  }
+
+  &__fill {
+    display: block;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--b3-theme-primary);
+  }
+}
+
+// **************************************** 加载动画 ****************************************
+
+// 三点跳动：AI 正在思考
+@keyframes mood-dot-bounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+
+  40% {
+    transform: translateY(-4px);
+    opacity: 1;
+  }
+}
+
+// 单点呼吸：卡片上的小徽标
+@keyframes mood-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(0.8);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+// 扫光：与思源「数据库加载」用的是同一种手法（底色 + 白色高光横扫）
+@keyframes mood-shimmer-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.mood-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+
+  > i {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--b3-theme-primary);
+    animation: mood-dot-bounce 1.2s infinite ease-in-out;
+
+    &:nth-child(2) {
+      animation-delay: 0.16s;
+    }
+
+    &:nth-child(3) {
+      animation-delay: 0.32s;
+    }
+  }
+}
+
+.mood-dot-pulse {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--b3-theme-primary);
+  animation: mood-pulse 1.2s ease-in-out infinite;
+}
+
+.mood-thinking {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--b3-theme-on-surface);
+    min-height: 18px;
+  }
+}
+
+.mood-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+
+  &__line {
+    position: relative;
+    overflow: hidden;
+    height: 10px;
+    border-radius: var(--b3-border-radius);
+    background: var(--b3-border-color);
+
+    &::after {
+      content: " ";
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent 0, rgba(255, 255, 255, 0.4) 50%, transparent 100%);
+      animation: mood-shimmer-sweep 1.2s linear infinite;
+    }
+  }
+}
+
+// 对动效敏感的人关掉动画
+@media (prefers-reduced-motion: reduce) {
+  .mood-dots > i,
+  .mood-dot-pulse,
+  .mood-skeleton__line::after {
+    animation: none;
   }
 }
 
@@ -737,7 +1484,7 @@
 .mood-dialog {
   height: 100%;
   box-sizing: border-box;
-  padding: 8px 12px 12px;
+  padding: 10px 16px 14px;
   overflow: hidden;
 }
 
@@ -745,11 +1492,100 @@
   overflow: auto;
 }
 
+// 严格模式下自绘的关闭按钮（思源自带那个跟 disableClose 绑在一起，挡遮罩时会被一起隐藏）
+.mood-close {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--b3-border-radius);
+  color: var(--b3-theme-on-surface);
+  cursor: pointer;
+  opacity: 0.72;
+
+  &:hover {
+    opacity: 1;
+    background: var(--b3-list-hover);
+  }
+
+  svg {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+// 手机端：让对话框占满整屏。
+// 思源自带的 .b3-dialog__container 有 max-width: 88vw 上限，宽高又是写在 style 属性上的内联样式，
+// 所以这里必须用 !important 才能覆盖掉。
+.mood-dialog-fullscreen {
+  &.b3-dialog__container {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    border: none;
+    border-radius: 0;
+  }
+
+  .b3-dialog__body {
+    // 内容各自滚动，避免外层再套一层滚动条
+    overflow: hidden;
+  }
+
+  .mood-dialog {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  // 手机上手指粗，关闭按钮也放大一点
+  .mood-close {
+    top: 8px;
+    right: 8px;
+    width: 36px;
+    height: 36px;
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
+
+  // 手机上手指粗，按钮与选项都放大到够点
+  .mood-btn {
+    height: 36px;
+    line-height: 34px;
+    font-size: 14px;
+  }
+
+  .mood-option {
+    padding: 12px 14px;
+
+    &__text {
+      font-size: 14px;
+    }
+  }
+
+  .mood-quiz__question {
+    font-size: 17px;
+  }
+
+  .mood-quiz__footer .mood-btn {
+    min-width: 72px;
+  }
+}
+
 // **************************************** 设置面板 ****************************************
 
 .mood-setting-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -760,7 +1596,7 @@
 
 .mood-select,
 .mood-number {
-  height: 26px;
+  height: 28px;
   border: 1px solid var(--b3-border-color);
   border-radius: var(--b3-border-radius);
   background: var(--b3-theme-surface);

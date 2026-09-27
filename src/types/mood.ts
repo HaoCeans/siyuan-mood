@@ -41,11 +41,15 @@ export interface QuizOption {
   tags?: string[];
 }
 
+/** single 单选 / multiple 多选 / text 填空（用户用自己的话写，不计分） */
+export type QuestionType = "single" | "multiple" | "text";
+
 export interface QuizQuestion {
   id: string;
   dimension: Dimension;
-  type: "single" | "multiple";
+  type: QuestionType;
   text: string;
+  /** 填空题为空数组 */
   options: QuizOption[];
   source: "builtin" | "imported";
   enabled: boolean;
@@ -67,11 +71,13 @@ export interface QuizAnswer {
   /** 快照 */
   questionText: string;
   dimension: Dimension;
-  type: "single" | "multiple";
+  type: QuestionType;
   optionIds: string[];
   /** 快照 */
   optionLabels: string[];
-  /** 该题得分 0-3，不计分维度为 -1 */
+  /** 填空题的原文 */
+  text?: string;
+  /** 该题得分 0-3，不计分与填空题为 -1 */
   score: number;
   tags: string[];
 }
@@ -110,6 +116,28 @@ export interface FollowUp {
   /** 填空：真正实施之后的感受 */
   note?: string;
   at?: number;
+  /**
+   * user = 用户自己写的做法（AI 给的建议不带这个字段）。
+   * 自己写的那些不会因为「重新解读」被覆盖，也会一起进复盘和下一次解读。
+   */
+  source?: "user";
+}
+
+/**
+ * 跟进复盘：把「每条建议做了没有 + 做完之后的感觉」交给 AI 看效果。
+ * 与 ai 字段分开存，因为它是解读之后才产生的新一轮数据。
+ */
+export interface FollowReview {
+  status: "idle" | "running" | "done" | "failed";
+  /** 哪条有用、哪条卡住、可能的原因 */
+  analysis?: string;
+  /** 确实有效的做法 */
+  works?: string[];
+  /** 下次可以换成什么 */
+  next?: string[];
+  raw?: string;
+  error?: string;
+  at?: number;
 }
 
 export interface QuizRecord {
@@ -124,8 +152,22 @@ export interface QuizRecord {
   moodScore: number;
   /** 本地提取，AI 未跑或失败时也能显示 */
   keywordLocal: string[];
+  /**
+   * 用户给此刻情绪起的名字（情绪标注，Affect Labeling）。
+   * 起名字这个动作本身就有调节作用；「说不上来」也是有效记录。
+   */
+  moodName?: string;
+  /** 用户勾选的身体与行为信号（睡眠、食欲、动力、社交等） */
+  signals?: string[];
+  /**
+   * 关联的思源块 ID（用户自己的笔记，最近的经历等）。
+   * 只存 ID 不存内容：解读时实时拉取，永远读到最新版。
+   */
+  boundBlockId?: string;
   ai: AiAnalysis;
   followUps: FollowUp[];
+  /** 跟进复盘结果，用户手动触发 */
+  followReview?: FollowReview;
   /** 本次算出的下次建议时间 */
   dueAt?: number;
   note?: string;
@@ -142,6 +184,18 @@ export interface RecordIndexEntry {
   adviceDone: number;
 }
 
+/**
+ * 快速打卡：随时点一下记下此刻的词，几秒完事。
+ * 与正式问答分开——正式测评不该太频繁，但一天里状态的变化值得随手记。
+ */
+export interface CheckIn {
+  id: string;
+  at: number;
+  word: string;
+  /** 顺手记的天气（emoji），会影响情绪，也值得留档 */
+  weather?: string;
+}
+
 // **************************************** Settings ****************************************
 
 export interface MoodSettings {
@@ -153,6 +207,10 @@ export interface MoodSettings {
     useBuiltin: boolean;
     importedEnabled: boolean;
   };
+  /** 用户自己加的打卡常用词，与内置词表合并 */
+  checkinWords?: string[];
+  /** 「记一下此刻」弹窗里是否显示表情图标；日历与统计不受影响 */
+  checkinIcons: boolean;
   reminder: {
     enabled: boolean;
     baseDays: number;

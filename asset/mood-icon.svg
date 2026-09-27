@@ -1,0 +1,11 @@
+<!--
+  插件图标源文件。渲染成 icon.png 的命令见 README「图标」一节（Edge 无头模式截图，160x160，背景透明）。
+  图形取自 Lucide 的 heart-handshake（ISC 许可），配色沿用本机另一插件「鲸鱼快速批注」的家族色。
+-->
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <rect width="160" height="160" rx="34" fill="#6ac4ee"/>
+  <g transform="translate(26.5, 26.5) scale(4.45)" fill="none" stroke="#0672bd" stroke-width="2.2"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M19.414 14.414C21 12.828 22 11.5 22 9.5a5.5 5.5 0 0 0-9.591-3.676.6.6 0 0 1-.818.001A5.5 5.5 0 0 0 2 9.5c0 2.3 1.5 4 3 5.5l5.535 5.362a2 2 0 0 0 2.879.052 2.12 2.12 0 0 0-.004-3 2.124 2.124 0 1 0 3-3 2.124 2.124 0 0 0 3.004 0 2 2 0 0 0 0-2.828l-1.881-1.882a2.41 2.41 0 0 0-3.409 0l-1.71 1.71a2 2 0 0 1-2.828 0 2 2 0 0 1 0-2.828l2.823-2.762"/>
+  </g>
+</svg>

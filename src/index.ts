@@ -6,7 +6,7 @@ import { loadAll, state } from "@/store";
 import { Reminder } from "@/stats/reminder";
 import { disposeAiObservers } from "@/ai/siyuanAi";
 import { mountVue, unmountVue, type MountedApp } from "@/main";
-import { openQuizDialog } from "@/ui/dialogs";
+import { openQuizDialog, openCheckInDialog } from "@/ui/dialogs";
 import { registerSettings } from "@/ui/settings/SettingPanel";
 import { MOOD_ICONS } from "@/ui/icons";
 import DockPanel from "@/ui/Dock.vue";
@@ -126,6 +126,11 @@ export default class MoodPlugin extends Plugin {
       langKey: "startQuiz",
       hotkey: "",
       callback: () => openQuizDialog(),
+    });
+    this.addCommand({
+      langKey: "checkin",
+      hotkey: "⌥⌘M",
+      callback: () => openCheckInDialog(),
     });
   }
 

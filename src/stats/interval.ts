@@ -57,6 +57,10 @@ export function computeInterval(records: QuizRecord[], settings: MoodSettings): 
     reasons.push("状态稳定");
   }
 
+  // 觉察触发太频繁会变成新的精神负担：各种下调合计最多 4 天，
+  // 默认 7 天的基准最快也只会到 3 天一次；用户自己设的 minDays 仍然生效。
+  adjust = Math.max(adjust, -4);
+
   const days = clamp(base + adjust, min, max);
   if (!reasons.length) reasons.push("按常规节奏");
   return { days, reasons };

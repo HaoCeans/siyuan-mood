@@ -4,14 +4,17 @@
  */
 import { reactive } from "vue";
 import { BUILTIN_QUESTIONS } from "@/quiz/bank";
+import { EMOTION_WORDS } from "@/quiz/emotions";
 import { summarizeAnswers } from "@/quiz/score";
 import { computeDueAt, computeInterval } from "@/stats/interval";
-import { KEY_BANK, KEY_INDEX, KEY_REPORT, KEY_SETTINGS, monthKey, readData, writeData } from "@/store/storage";
+import { KEY_BANK, KEY_CHECKINS, KEY_INDEX, KEY_REPORT, KEY_SETTINGS, monthKey, readData, writeData } from "@/store/storage";
 import type {
+  CheckIn,
   ImportedBank,
   MoodReport,
   MoodSettings,
   QuizAnswer,
+  QuizOption,
   QuizQuestion,
   QuizRecord,
   RecordIndexEntry,
@@ -28,11 +31,14 @@ export function defaultSettings(): MoodSettings {
     reminder: {
       enabled: true,
       baseDays: 7,
-      minDays: 1,
+      // 最低两天：觉察是慢功夫，触发太勤反而变成负担
+      minDays: 2,
       maxDays: 30,
       quietFrom: "22:00",
       quietTo: "08:00",
     },
+    checkinWords: [],
+    checkinIcons: true,
     ai: { enabled: true, autoRun: true, maxContextRecords: 3 },
   };
 }
@@ -44,6 +50,8 @@ export const state = reactive({
   bank: { name: "", questions: [] } as ImportedBank,
   /** AI 生成的心情卡片（周报/月报） */
   report: null as MoodReport | null,
+  /** 快速打卡，新的在前 */
+  checkins: [] as CheckIn[],
   tab: "records" as ViewTab,
   detailId: "",
   /** 有 AI 请求在跑 */
@@ -74,6 +82,10 @@ export async function loadAll(): Promise<void> {
   state.settings = mergeSettings(await readData<Partial<MoodSettings>>(KEY_SETTINGS, {}));
   state.bank = await readData<ImportedBank>(KEY_BANK, { name: "", questions: [] });
   state.report = await readData<MoodReport | null>(KEY_REPORT, null);
+  const checkins = await readData<CheckIn[]>(KEY_CHECKINS, []);
+  state.checkins = (Array.isArray(checkins) ? checkins : [])
+    .filter((c) => c && typeof c.at === "number" && typeof c.word === "string")
+    .sort((a, b) => b.at - a.at);
 
   const index = await readData<RecordIndexEntry[]>(KEY_INDEX, []);
   const months = Array.from(new Set(index.filter((e) => e && e.finishedAt).map((e) => monthKey(e.finishedAt))));
@@ -93,6 +105,26 @@ export async function loadAll(): Promise<void> {
 export async function saveReport(report: MoodReport | null): Promise<void> {
   state.report = report;
   await writeData(KEY_REPORT, report);
+}
+
+// **************************************** 快速打卡 ****************************************
+
+export function latestCheckIn(): CheckIn | undefined {
+  return state.checkins[0];
+}
+
+export async function addCheckIn(word: string, weather?: string): Promise<CheckIn> {
+  const entry: CheckIn = { id: makeRecordId(Date.now()), at: Date.now(), word };
+  if (weather) entry.weather = weather;
+  state.checkins = [entry, ...state.checkins];
+  await writeData(KEY_CHECKINS, state.checkins);
+  return entry;
+}
+
+/** 打卡可用词：内置 16 个 + 用户自定义，自定义的排在后面 */
+export function allCheckinWords(): string[] {
+  const custom = (state.settings.checkinWords || []).filter((w) => w.trim());
+  return [...EMOTION_WORDS, ...custom.filter((w) => !EMOTION_WORDS.includes(w))];
 }
 
 export async function saveSettings(): Promise<void> {
@@ -130,7 +162,12 @@ export function getIndex(): RecordIndexEntry[] {
   }));
 }
 
-export function createRecord(questions: QuizQuestion[], answers: QuizAnswer[], startedAt: number): QuizRecord {
+export function createRecord(
+  questions: QuizQuestion[],
+  answers: QuizAnswer[],
+  startedAt: number,
+  extra: { moodName?: string; signals?: string[] } = {},
+): QuizRecord {
   const finishedAt = Date.now();
   const summary = summarizeAnswers(answers);
   const record: QuizRecord = {
@@ -145,6 +182,8 @@ export function createRecord(questions: QuizQuestion[], answers: QuizAnswer[], s
     ai: { status: "idle" },
     followUps: [],
   };
+  if (extra.moodName) record.moodName = extra.moodName;
+  if (extra.signals?.length) record.signals = extra.signals;
   record.dueAt = computeDueAt(finishedAt, computeInterval(state.records, state.settings));
   return record;
 }
@@ -220,20 +259,27 @@ export function parseBankJson(text: string): BankParseResult {
     const at = `第 ${i + 1} 题`;
     if (!item || typeof item.id !== "string" || !item.id) return { ok: false, error: `${at}：缺少 id` };
     if (!ALLOWED_DIMENSIONS.has(item.dimension)) return { ok: false, error: `${at}：dimension 必须是 body / recognition / energy / avoidance / need` };
-    if (item.type !== "single" && item.type !== "multiple") return { ok: false, error: `${at}：type 必须是 single 或 multiple` };
+    if (item.type !== "single" && item.type !== "multiple" && item.type !== "text") {
+      return { ok: false, error: `${at}：type 必须是 single、multiple 或 text` };
+    }
     if (typeof item.text !== "string" || !item.text.trim()) return { ok: false, error: `${at}：缺少题干 text` };
-    if (!Array.isArray(item.options) || item.options.length < 2) return { ok: false, error: `${at}：至少需要 2 个选项` };
-    const options = item.options.map((option: any, oi: number) => {
-      if (!option || typeof option.id !== "string" || typeof option.label !== "string") {
-        throw new Error(`${at} 选项 ${oi + 1}：需要 id 与 label`);
-      }
-      return {
-        id: option.id,
-        label: option.label,
-        score: typeof option.score === "number" ? option.score : undefined,
-        tags: Array.isArray(option.tags) ? option.tags.filter((t: unknown) => typeof t === "string") : undefined,
-      };
-    });
+
+    let options: QuizOption[] = [];
+    if (item.type !== "text") {
+      if (!Array.isArray(item.options) || item.options.length < 2) return { ok: false, error: `${at}：至少需要 2 个选项` };
+      options = item.options.map((option: any, oi: number) => {
+        if (!option || typeof option.id !== "string" || typeof option.label !== "string") {
+          throw new Error(`${at} 选项 ${oi + 1}：需要 id 与 label`);
+        }
+        return {
+          id: option.id,
+          label: option.label,
+          score: typeof option.score === "number" ? option.score : undefined,
+          tags: Array.isArray(option.tags) ? option.tags.filter((tag: unknown) => typeof tag === "string") : undefined,
+        };
+      });
+    }
+
     questions.push({
       id: item.id,
       dimension: item.dimension,
@@ -277,6 +323,7 @@ export function exportAll(): string {
       settings: state.settings,
       bank: state.bank,
       records: sortedRecords(),
+      checkins: state.checkins,
     },
     null,
     2,
@@ -317,6 +364,16 @@ export async function importAll(text: string): Promise<DataImportResult> {
     state.bank = raw.bank;
     await writeData(KEY_BANK, JSON.parse(JSON.stringify(state.bank)));
   }
+  if (Array.isArray(raw.checkins)) {
+    const map = new Map<string, CheckIn>();
+    for (const entry of [...state.checkins, ...raw.checkins]) {
+      if (entry && typeof entry.id === "string" && typeof entry.at === "number" && typeof entry.word === "string") {
+        map.set(entry.id, entry);
+      }
+    }
+    state.checkins = Array.from(map.values()).sort((a, b) => b.at - a.at);
+    await writeData(KEY_CHECKINS, state.checkins);
+  }
 
   const months = Array.from(new Set(state.records.map((r) => monthKey(r.finishedAt))));
   for (const month of months) await persistMonth(month);
@@ -328,6 +385,8 @@ export async function clearAll(keepSettings = true): Promise<void> {
   const months = Array.from(new Set(state.records.map((r) => monthKey(r.finishedAt))));
   for (const month of months) await writeData(month, []);
   state.records = [];
+  state.checkins = [];
+  await writeData(KEY_CHECKINS, []);
   await persistIndex();
   if (!keepSettings) {
     state.bank = { name: "", questions: [] };

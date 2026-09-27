@@ -256,6 +256,17 @@ export async function getBlockKramdown(
   return request(url, data);
 }
 
+/**
+ * 思源的 kramdown 会带块属性尾巴（{: id="…" updated="…" …}），
+ * 展示和喂给 AI 之前都要洗掉，否则满屏都是时间戳和 ID。
+ */
+export function cleanKramdown(markdown: string): string {
+  return (markdown || "")
+    .replace(/\{: [^}]*\}/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export async function getChildBlocks(
   id: BlockId
 ): Promise<IResGetChildBlock[]> {

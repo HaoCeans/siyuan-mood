@@ -6,6 +6,7 @@ export const KEY_SETTINGS = "settings";
 export const KEY_BANK = "bank";
 export const KEY_INDEX = "index";
 export const KEY_REPORT = "report";
+export const KEY_CHECKINS = "checkins";
 
 /** 明细按月分片，避免单文件随记录增长越来越慢 */
 export function monthKey(ts: number): string {
