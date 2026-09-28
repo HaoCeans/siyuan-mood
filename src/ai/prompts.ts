@@ -2,6 +2,7 @@
 import { DIMENSION_MAP } from "@/types/mood";
 import type { CheckIn, QuizQuestion, QuizRecord } from "@/types/mood";
 import { normalizeAiQuestions } from "@/quiz/markdownBank";
+import { weatherLabel } from "@/quiz/emotions";
 import { answerText } from "@/quiz/score";
 import { formatDateTime, formatMonthDay, formatTime } from "@/utils/dom";
 
@@ -10,6 +11,7 @@ const JSON_ONLY = "请只输出一个 JSON 对象，不要输出任何解释性�
 const TONE_RULES = [
   "描述此刻的状态，不做医学诊断，不使用「你有……症」「你是……型人格」这类标签。",
   "advice 固定给 2 条，必须是 10 分钟内能做完的具体小动作，不要写「要放松」「多运动」。两条里一条偏安抚身体、一条偏处理事情，除非用户状态很低——那时两条都以安抚为主。",
+  "历史记录里的建议执行情况是用户的真实反馈：标了「做了」且之后心情分高的，说明这类做法对他有效，本次 advice 优先延续同类方向；标了「没做」或卡住的，不要再原样重复，换一个门槛更低的起步版本，并在 analysis 里说明换法。",
   "keywords 给 3-5 个中文短语，尽量来自下面的作答，不要生造。",
   "如果心情分低于 20，第一条 advice 以安抚身体为主，不布置任务。",
   "情绪标注（给情绪起名字）本身就有调节作用。用户起了名字就在 analysis 里回应它；没起名或写了「说不上来」，就温和地给 1-2 个可能的候选词帮他把感受标出来，不要替他下结论。",
@@ -119,8 +121,8 @@ ${schema}
 </输出格式>`;
 }
 
-/** 跟进复盘：用户标了「做了没有 / 做完之后什么感觉」之后，回头看看哪条建议真的有用 */
-export function buildFollowReviewPrompt(record: QuizRecord): string {
+/** 跟进复盘：用户标了「做了没有 / 做完之后什么感觉」之后，结合之后的打卡轨迹看哪条建议真的有用 */
+export function buildFollowReviewPrompt(record: QuizRecord, checkins: CheckIn[] = []): string {
   const advice = record.ai.advice?.length
     ? record.ai.advice.map((item, i) => `${i + 1}. ${item.text}`).join("\n")
     : "（这次没有给出建议）";
@@ -141,6 +143,17 @@ export function buildFollowReviewPrompt(record: QuizRecord): string {
     })
     .join("\n");
 
+  // 做完建议之后的打卡轨迹（按时间从旧到新）：效果好不好，不能只听标记，还要看状态怎么走
+  const checkinLines = checkins
+    .map((entry) => {
+      const weather = entry.weather ? `（天气：${weatherLabel(entry.weather)}）` : "";
+      return `- ${formatMonthDay(entry.at)} ${formatTime(entry.at)} ${entry.word}${weather}`;
+    })
+    .join("\n");
+  const checkinBlock = checkinLines
+    ? `\n<测评之后的打卡轨迹>\n（从那次测评到现在，用户随手记的，按时间排）\n${checkinLines}\n</测评之后的打卡轨迹>\n`
+    : "";
+
   return `你是一位温和、不评判的情绪觉察教练。用户此前做过一次心情自评，你给过建议；现在他回来标记了每条建议的执行情况。
 ${JSON_ONLY}
 
@@ -157,13 +170,14 @@ ${advice}
 ${lines}
 ${pending > 0 ? `（另有 ${pending} 条还没标记）` : ""}
 </执行情况>
-
+${checkinBlock}
 <输出要求>
 1. 老实说哪条有用、哪条没用，依据是上面的「之后心情」与感受，不要泛泛而谈。
-2. 没做不等于失败，重点看卡在哪，把建议改得更小、更容易开始。
-3. 不做医学诊断，不使用「你有……症」「你是……型人格」这类标签。
-4. next 给 1-2 条，要比上次更具体、更容易做到。
-5. 排版：analysis 先一句总评，再用 - 列表分点（每点以**加粗小标签**开头），不要写成一大段。
+2. 若有「测评之后的打卡轨迹」，把建议的效果放进连续状态里看：做了建议之后打卡是好转、持平还是回落；轨迹和标记若对不上（标了做了、状态却更差），诚实点出来。
+3. 没做不等于失败，重点看卡在哪，把建议改得更小、更容易开始。
+4. 不做医学诊断，不使用「你有……症」「你是……型人格」这类标签。
+5. next 给 1-2 条，要比上次更具体、更容易做到。
+6. 排版：analysis 先一句总评，再用 - 列表分点（每点以**加粗小标签**开头），不要写成一大段。
 </输出要求>
 
 <输出格式>
@@ -217,23 +231,45 @@ export function parseBankFromAi(text: string): QuizQuestion[] | null {
   return questions.length ? questions : null;
 }
 
-/** 快速打卡后的一句小建议：只看最近的打卡轨迹，输出短文本（不是 JSON） */
-export function buildCheckinSuggestionPrompt(entries: CheckIn[], latestScore?: number): string {
+/** 快速打卡后的一句小建议：把刚打卡的这条放进最近轨迹里连贯地看，输出短文本（不是 JSON） */
+export function buildCheckinSuggestionPrompt(params: {
+  /** 最近的打卡，新的在前（刚打卡的就在最前面） */
+  entries: CheckIn[];
+  /** 本次刚打卡的（多选时可能不止一条），会在轨迹里标 ▶ */
+  justNow: CheckIn[];
+  /** 最近已经给过的建议，要求这次换角度 */
+  recent: string[];
+  latestScore?: number;
+}): string {
+  const { entries, justNow, recent, latestScore } = params;
+  const justIds = new Set(justNow.map((entry) => entry.id));
   const lines = entries
-    .map((entry) => `- ${formatMonthDay(entry.at)} ${formatTime(entry.at)} ${entry.word}`)
+    .map((entry) => {
+      const mark = justIds.has(entry.id) ? "▶" : " ";
+      const weather = entry.weather ? `（天气：${weatherLabel(entry.weather)}）` : "";
+      return `- ${mark} ${formatMonthDay(entry.at)} ${formatTime(entry.at)} ${entry.word}${weather}`;
+    })
     .join("\n");
+  const recentBlock = recent.length
+    ? `\n<最近已经给过的建议>\n${recent.map((text) => `- ${text}`).join("\n")}\n</最近已经给过的建议>\n`
+    : "";
 
-  return `你是一位温和、不评判的情绪觉察教练。用户刚随手记录了一次此刻的心情（快速打卡），下面是他最近的打卡轨迹。
-请只输出建议正文本身：一两句话、总共不超过 50 个字，给一个马上能做的小动作，或一句安抚；不诊断、不贴标签、不要任何开场白和解释。最关键的那个动作可以用 **加粗** 强调，其余格式不要用。
+  return `你是一位温和、不评判的情绪觉察教练。用户刚随手记录了一次此刻的心情（快速打卡），下面是他最近的打卡轨迹（从新到旧，▶ 是刚打卡的）。
+请把刚打卡的这条放进整段轨迹里连贯地看，而不是单独评论这一句：
+- 和最近几次一致（比如连着几天都累）→ 顺着这个持续的状态往下说；
+- 相比最近出现了转折（上午平静、下午转累；连日低落后今天转好）→ 点出这个变化，建议跟着变化走；
+- 今天第一次打卡、没有轨迹可对比 → 就只回应这一条。
+
+请只输出建议正文本身：一两句话、总共不超过 60 个字，给一个马上能做的小动作，或一句安抚；不诊断、不贴标签、不要任何开场白和解释。最关键的那个动作可以用 **加粗** 强调，其余格式不要用。
 
 <最近打卡>
 ${lines}
 </最近打卡>
-
+${recentBlock}
 心情分（最近一次正式测评）：${typeof latestScore === "number" ? latestScore : "暂无"}`;
 }
 
-export function buildReportPrompt(records: QuizRecord[], rangeDays: number): string {
+export function buildReportPrompt(records: QuizRecord[], rangeDays: number, checkins: CheckIn[] = []): string {
   const lines = records
     .map(
       (r) =>
@@ -241,18 +277,51 @@ export function buildReportPrompt(records: QuizRecord[], rangeDays: number): str
     )
     .join("\n");
 
+  // 这段时间的建议执行情况：哪些做法被用户验证有效，报告里值得点名
+  const followLines = records
+    .flatMap((r) =>
+      r.followUps
+        .filter((f) => f.done !== "unset")
+        .map((f) => {
+          const done = f.done === "yes" ? "做了" : f.done === "partial" ? "做了一部分" : "没做";
+          const extra = [
+            typeof f.feeling === "number" ? `之后心情 ${f.feeling}/5` : "",
+            f.blocker ? `卡在${f.blocker}` : "",
+          ]
+            .filter(Boolean)
+            .join("，");
+          return `- ${formatMonthDay(r.finishedAt)} ${f.source === "user" ? "[他自己写的] " : ""}${f.adviceText} —— ${done}${extra ? `（${extra}）` : ""}`;
+        }),
+    )
+    .slice(0, 20);
+  const followBlock = followLines.length
+    ? `\n<这段时间的建议执行情况>\n${followLines.join("\n")}\n</这段时间的建议执行情况>\n`
+    : "";
+
+  // 这段时间的快速打卡（按时间排，最多 20 条）：一天内的起伏是正式测评看不到的细节
+  const checkinLines = checkins
+    .map((entry) => {
+      const weather = entry.weather ? `（天气：${weatherLabel(entry.weather)}）` : "";
+      return `- ${formatMonthDay(entry.at)} ${formatTime(entry.at)} ${entry.word}${weather}`;
+    })
+    .join("\n");
+  const checkinBlock = checkinLines
+    ? `\n<这段时间的快速打卡>\n（按时间排）\n${checkinLines}\n</这段时间的快速打卡>\n`
+    : "";
+
   return `你是一位温和、不评判的情绪觉察教练。下面是用户最近 ${rangeDays} 天的心情记录。
 ${JSON_ONLY}
 
 <记录>
 ${lines || "（这段时间还没有记录）"}
 </记录>
-
+${followBlock}${checkinBlock}
 <输出要求>
 1. 总结这段时间的整体状态与变化趋势，不做医学诊断，不使用人格标签。
-2. 指出一个最值得注意的模式（例如「累的时候更容易说不清感受」）。
-3. 给出 2 条这段时间可以继续做的具体小事。
-4. 排版：analysis 用 Markdown——先一句总评，再 - 分点（每点以**加粗小标签**开头，如 **趋势**、**模式**）；可用的强调样式：**加粗**、==高亮==、- 列表。分数对比写「75 → 67」这种箭头形式。
+2. 指出一个最值得注意的模式（例如「累的时候更容易说不清感受」）；若有快速打卡，把一天内的起伏模式（如「下午总比上午差」）也算进去。
+3. 若有建议执行情况，点出哪类做法被验证有效、哪类总被搁置，第三条的「具体小事」优先延续有效的方向。
+4. 给出 2 条这段时间可以继续做的具体小事。
+5. 排版：analysis 用 Markdown——先一句总评，再 - 分点（每点以**加粗小标签**开头，如 **趋势**、**模式**）；可用的强调样式：**加粗**、==高亮==、- 列表。分数对比写「75 → 67」这种箭头形式。
 </输出要求>
 
 <输出格式>

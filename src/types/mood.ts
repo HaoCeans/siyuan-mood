@@ -196,6 +196,12 @@ export interface CheckIn {
   weather?: string;
 }
 
+/** 快速打卡 AI 小建议的存档：只留最近几条，供下一次提示词里「别重复」用 */
+export interface CheckinSuggestLogEntry {
+  at: number;
+  text: string;
+}
+
 // **************************************** Settings ****************************************
 
 export interface MoodSettings {

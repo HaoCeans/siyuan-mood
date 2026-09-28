@@ -104,12 +104,9 @@
       </template>
 
       <template v-else>
-        <div class="mood-setting-note">
-          {{ t('blockBindHint') }}
-        </div>
         <div
           class="mood-setting-row"
-          style="margin-top: 8px"
+          style="margin-top: 0"
         >
           <input
             v-model="blockIdDraft"

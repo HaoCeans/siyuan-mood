@@ -50,9 +50,9 @@ export class Reminder {
     const decision = computeInterval(state.records, state.settings);
     const left = this.daysLeft();
     if (left === null) return "";
-    if (left < 0) return `${t("dueNow")}（${decision.reasons.join("、")}）`;
-    if (left === 0) return `${t("dueToday")}（${decision.reasons.join("、")}）`;
-    return `${t("nextInDays").replace("{n}", String(left))}（${decision.reasons.join("、")}）`;
+    if (left < 0) return `${t("dueNow")}（${decision.reasons.join(" · ")}）`;
+    if (left === 0) return `${t("dueToday")}（${decision.reasons.join(" · ")}）`;
+    return `${t("nextInDays").replace("{n}", String(left))}（${decision.reasons.join(" · ")}）`;
   }
 
   refreshDot(): void {

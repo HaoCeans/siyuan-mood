@@ -14,7 +14,7 @@ import { addCheckIn, allCheckinWords, findRecord, state } from "@/store";
 import { familyOf, wordIconFile, wordFamily, weatherIconFile, WEATHERS, iconUrl, type EmotionFamily } from "@/quiz/emotions";
 import { escapeHtml, formatTime } from "@/utils/dom";
 import { md2html } from "@/utils/lute";
-import type { QuizRecord } from "@/types/mood";
+import type { CheckIn, QuizRecord } from "@/types/mood";
 
 export function isMobile(): boolean {
   const frontend = getFrontend();
@@ -168,14 +168,40 @@ export function openRecordDialog(recordId: string, autoAnalyze = false): void {
 /**
  * 快速打卡：点一个词就存，几秒完事。
  * 故意做得比答题轻得多——正式测评不该太频繁，但一天里「早上平静、中午累」这种变化值得随手记。
- * 点完不关弹窗：下方根据最近轨迹给一句 AI 小建议（AI 不可用时退回本地一句话），再点别的词可继续记。
+ * 点完不关弹窗：下方结合最近轨迹给一句 AI 小建议（AI 不可用时退回本地提示，并明确标注），再点别的词可继续记。
  */
-const FALLBACK_HINTS: Record<EmotionFamily, string> = {
-  steady: "状态好的时候，顺手留意一下是什么在支持你。",
-  restless: "紧绷的时候，先做三次慢呼吸，让肩膀沉下来。",
-  low: "低落的时候不用急着振作，先给自己倒杯水。",
-  drained: "累的时候允许自己停十分钟，什么都不做。",
-  unclear: "说不上来也没关系，先照顾身体：喝口水，起来走两步。",
+const FALLBACK_HINTS: Record<EmotionFamily, string[]> = {
+  steady: [
+    "状态好的时候，顺手留意一下是什么在支持你。",
+    "感觉不错就趁现在，把一件拖着心神的小事收个尾。",
+    "好的状态值得存档：想想今天做对了哪件小事。",
+  ],
+  restless: [
+    "紧绷的时候，先做三次慢呼吸，让肩膀沉下来。",
+    "给身体换个姿势：站起来伸个懒腰，喝口水再坐下。",
+    "烦的时候先别刷手机，出门走两分钟透口气。",
+  ],
+  low: [
+    "低落的时候不用急着振作，先给自己倒杯水。",
+    "不用逼自己开心，找件五分钟能做完的小事开头就好。",
+    "情绪有它自己的节奏，先允许它待一会儿。",
+  ],
+  drained: [
+    "累的时候允许自己停十分钟，什么都不做。",
+    "先补一小块能量：闭眼歇五分钟，或者吃点东西。",
+    "今天对自己好一点：能推的事就推一件。",
+  ],
+  unclear: [
+    "说不上来也没关系，先照顾身体：喝口水，起来走两步。",
+    "模糊也是一种状态，今晚睡前试着写一句今天的片段。",
+    "先不急着定义它，留意一下身体哪个部位最紧。",
+  ],
+};
+
+/** 按打卡次数轮换，同一家族不会连着几次都是同一句 */
+const pickFallback = (family: EmotionFamily): string => {
+  const list = FALLBACK_HINTS[family];
+  return list[state.checkins.length % list.length];
 };
 
 let checkinDialogInstance: Dialog | null = null;
@@ -224,9 +250,17 @@ export function openCheckInDialog(): void {
   const weather = { value: "" };
   const chips = new Map<string, HTMLElement>();
 
-  const renderSuggestion = (markdown: string): void => {
+  /** AI 的结果用「AI 小建议」，本地兜底用「小提示」，不再冒充 AI */
+  const renderSuggestion = (markdown: string, local = false): void => {
     panel.style.display = "";
-    panel.innerHTML = `<div class="mood-suggest__title">${escapeHtml(t("checkinSuggestTitle"))}</div><div class="mood-md mood-md--compact">${md2html(markdown)}</div>`;
+    const title = local ? t("checkinSuggestLocal") : t("checkinSuggestTitle");
+    panel.innerHTML = `<div class="mood-suggest__title">${escapeHtml(title)}</div><div class="mood-md mood-md--compact">${md2html(markdown)}</div>`;
+  };
+
+  /** 「已记下」是保存回执不是建议，不带标题 */
+  const renderSaved = (markdown: string): void => {
+    panel.style.display = "";
+    panel.innerHTML = `<div class="mood-md mood-md--compact">${md2html(markdown)}</div>`;
   };
 
   const renderLoading = (): void => {
@@ -234,17 +268,17 @@ export function openCheckInDialog(): void {
     panel.innerHTML = `<div class="mood-suggest__title">${escapeHtml(t("checkinSuggestTitle"))}</div><div class="mood-thinking__line"><span class="mood-dots"><i /><i /><i /></span><span class="mood-setting-note">${escapeHtml(t("checkinSuggestLoading"))}</span></div>`;
   };
 
-  const suggest = (word: string, token: number): void => {
+  const suggest = (word: string, justNow: CheckIn[], token: number): void => {
     const family = wordFamily(word);
     const entries = state.checkins.slice(0, 10);
     if (!state.settings.ai.enabled) {
-      renderSuggestion(FALLBACK_HINTS[family]);
+      renderSuggestion(pickFallback(family), true);
       return;
     }
     renderLoading();
-    void fetchCheckinSuggestion(entries).then((text) => {
+    void fetchCheckinSuggestion(entries, justNow).then((text) => {
       if (token !== requestToken) return;
-      renderSuggestion(text || FALLBACK_HINTS[family]);
+      renderSuggestion(text || pickFallback(family), !text);
     });
   };
 
@@ -319,14 +353,14 @@ export function openCheckInDialog(): void {
       const custom = input.value.trim();
       if (!words.length && !custom) return;
 
-      const saved = [];
+      const saved: CheckIn[] = [];
       for (const word of words) saved.push(await addCheckIn(word, weather.value || undefined));
       if (custom) saved.push(await addCheckIn(custom, weather.value || undefined));
 
       const label = saved.map((entry) => entry.word).join("、");
       const weatherFile = weather.value ? weatherIconFile(weather.value) : "";
       const weatherIcon = weatherFile ? `<img class="mood-emoji-img" src="${iconUrl(weatherFile)}" alt="">` : "";
-      renderSuggestion(`${escapeHtml(t("checkinSaved"))}：${escapeHtml(label)} ${weatherIcon}· ${formatTime(saved[0].at)}`);
+      renderSaved(`${escapeHtml(t("checkinSaved"))}：${escapeHtml(label)} ${weatherIcon}· ${formatTime(saved[0].at)}`);
 
       picked.clear();
       for (const word of chips.keys()) refreshChip(word);
@@ -334,7 +368,7 @@ export function openCheckInDialog(): void {
       refreshSave();
 
       requestToken++;
-      suggest(saved[0].word, requestToken);
+      suggest(saved[0].word, saved, requestToken);
     })();
   });
 }

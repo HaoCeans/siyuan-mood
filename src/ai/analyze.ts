@@ -3,7 +3,7 @@ import { buildAnalysisPrompt, buildCheckinSuggestionPrompt, buildFollowReviewPro
 import { askSiyuanAi } from "@/ai/siyuanAi";
 import { beginAi, endAi } from "@/ai/busy";
 import { cleanKramdown, getBlockKramdown } from "@/api";
-import { putRecord, saveReport, sortedRecords, state } from "@/store";
+import { putRecord, rememberCheckinSuggestion, saveReport, sortedRecords, state } from "@/store";
 import type { CheckIn, QuizRecord } from "@/types/mood";
 import { dayStart } from "@/utils/dom";
 
@@ -114,7 +114,13 @@ export async function reviewFollowUps(record: QuizRecord): Promise<AnalyzeOutcom
   record.followReview = { status: "running" };
   beginAi();
   try {
-    const result = await askSiyuanAi(buildFollowReviewPrompt(record));
+    const result = await askSiyuanAi(
+      buildFollowReviewPrompt(
+        record,
+        // 测评之后的打卡轨迹：做完建议后状态是好转、持平还是回落，全靠它看
+        state.checkins.filter((c) => c.at > record.finishedAt).slice(0, 8).reverse(),
+      ),
+    );
 
     if (!result.ok) {
       const message = result.reason === "empty" ? "尚未在「设置 → AI」中配置模型" : "AI 请求失败，稍后可以重试";
@@ -147,14 +153,22 @@ export async function reviewFollowUps(record: QuizRecord): Promise<AnalyzeOutcom
 }
 
 /** 打卡后的 AI 小建议：短文本，失败返回 null 由调用方退回本地文案 */
-export async function fetchCheckinSuggestion(entries: CheckIn[]): Promise<string | null> {
+export async function fetchCheckinSuggestion(entries: CheckIn[], justNow: CheckIn[]): Promise<string | null> {
   if (!state.settings.ai.enabled) return null;
   const latest = sortedRecords()[0];
   beginAi();
   try {
-    const result = await askSiyuanAi(buildCheckinSuggestionPrompt(entries, latest?.moodScore));
+    const result = await askSiyuanAi(
+      buildCheckinSuggestionPrompt({
+        entries,
+        justNow,
+        recent: state.checkinSuggestLog.map((s) => s.text),
+        latestScore: latest?.moodScore,
+      }),
+    );
     if (!result.ok) return null;
     const text = result.markdown.trim();
+    if (text) void rememberCheckinSuggestion(text);
     return text || null;
   } catch (err) {
     console.error("[mood] checkin suggestion failed", err);
@@ -177,7 +191,14 @@ export async function generateReport(rangeDays = 30): Promise<AnalyzeOutcome> {
 
   state.reportRunning = true;
   try {
-    const result = await askSiyuanAi(buildReportPrompt(records, rangeDays));
+    const result = await askSiyuanAi(
+      buildReportPrompt(
+        records,
+        rangeDays,
+        // 这段时间的快速打卡（最多 20 条，转成时间正序），补上一天内的起伏细节
+        state.checkins.filter((c) => c.at >= from).slice(0, 20).reverse(),
+      ),
+    );
     if (!result.ok) {
       const message = result.reason === "empty" ? "尚未在「设置 → AI」中配置模型" : "AI 请求失败，稍后可以重试";
       return { ok: false, reason: result.reason === "empty" ? "empty" : "failed", message };

@@ -7,9 +7,10 @@ import { BUILTIN_QUESTIONS } from "@/quiz/bank";
 import { EMOTION_WORDS } from "@/quiz/emotions";
 import { summarizeAnswers } from "@/quiz/score";
 import { computeDueAt, computeInterval } from "@/stats/interval";
-import { KEY_BANK, KEY_CHECKINS, KEY_INDEX, KEY_REPORT, KEY_SETTINGS, monthKey, readData, writeData } from "@/store/storage";
+import { KEY_BANK, KEY_CHECKINS, KEY_INDEX, KEY_REPORT, KEY_SETTINGS, KEY_SUGGEST_LOG, monthKey, readData, writeData } from "@/store/storage";
 import type {
   CheckIn,
+  CheckinSuggestLogEntry,
   ImportedBank,
   MoodReport,
   MoodSettings,
@@ -52,6 +53,8 @@ export const state = reactive({
   report: null as MoodReport | null,
   /** 快速打卡，新的在前 */
   checkins: [] as CheckIn[],
+  /** 快速打卡 AI 小建议的最近几条，新的在前 */
+  checkinSuggestLog: [] as CheckinSuggestLogEntry[],
   tab: "records" as ViewTab,
   detailId: "",
   /** 有 AI 请求在跑 */
@@ -87,6 +90,11 @@ export async function loadAll(): Promise<void> {
     .filter((c) => c && typeof c.at === "number" && typeof c.word === "string")
     .sort((a, b) => b.at - a.at);
 
+  const suggestLog = await readData<CheckinSuggestLogEntry[]>(KEY_SUGGEST_LOG, []);
+  state.checkinSuggestLog = (Array.isArray(suggestLog) ? suggestLog : []).filter(
+    (s) => s && typeof s.at === "number" && typeof s.text === "string",
+  );
+
   const index = await readData<RecordIndexEntry[]>(KEY_INDEX, []);
   const months = Array.from(new Set(index.filter((e) => e && e.finishedAt).map((e) => monthKey(e.finishedAt))));
   const records: QuizRecord[] = [];
@@ -119,6 +127,12 @@ export async function addCheckIn(word: string, weather?: string): Promise<CheckI
   state.checkins = [entry, ...state.checkins];
   await writeData(KEY_CHECKINS, state.checkins);
   return entry;
+}
+
+/** 记住最近给过的打卡小建议（留 5 条），下一次提示词里要求 AI 换角度 */
+export async function rememberCheckinSuggestion(text: string): Promise<void> {
+  state.checkinSuggestLog = [{ at: Date.now(), text }, ...state.checkinSuggestLog].slice(0, 5);
+  await writeData(KEY_SUGGEST_LOG, state.checkinSuggestLog);
 }
 
 /** 打卡可用词：内置 16 个 + 用户自定义，自定义的排在后面 */

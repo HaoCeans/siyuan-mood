@@ -12,11 +12,19 @@
 
       <div class="mood-header__side">
         <div class="mood-header__hint">
-          <span
-            v-if="state.aiRunning || !state.ready"
-            class="mood-dots"
-            style="margin-right: 6px"
-          ><i /><i /><i /></span>{{ hint }}
+          <div class="mood-header__hint-main">
+            <span
+              v-if="state.aiRunning || !state.ready"
+              class="mood-dots"
+              style="margin-right: 6px"
+            ><i /><i /><i /></span>{{ hintMain }}
+          </div>
+          <div
+            v-if="hintReasons"
+            class="mood-header__hint-sub"
+          >
+            {{ hintReasons }}
+          </div>
         </div>
         <div class="mood-btn-group">
           <button
@@ -203,14 +211,18 @@ const level = computed(() => moodLevel(latest.value?.moodScore ?? 0))
 const lastCheckin = computed(() => latestCheckIn())
 const lastCheckinTime = computed(() => (lastCheckin.value ? formatTime(lastCheckin.value.at) : ''))
 
-const hint = computed(() => {
+const hintMain = computed(() => {
   if (!latest.value) return t('firstTimeHint')
   if (state.aiRunning) return t('aiRunning')
-  const reasons = computeInterval(sortedRecords(), state.settings).reasons.join('、')
   const left = daysUntilDue(nextDueAt(sortedRecords(), state.settings) ?? Date.now())
-  if (left < 0) return `${t('dueNow')}（${reasons}）`
-  if (left === 0) return `${t('dueToday')}（${reasons}）`
-  return `${t('nextInDays').replace('{n}', String(left))}（${reasons}）`
+  if (left < 0) return t('dueNow')
+  if (left === 0) return t('dueToday')
+  return t('nextInDays').replace('{n}', String(left))
+})
+
+const hintReasons = computed(() => {
+  if (!latest.value || state.aiRunning) return ''
+  return computeInterval(sortedRecords(), state.settings).reasons.join(' · ')
 })
 
 const nextText = computed(() => {

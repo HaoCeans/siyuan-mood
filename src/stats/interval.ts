@@ -28,18 +28,18 @@ export function computeInterval(records: QuizRecord[], settings: MoodSettings): 
     const slope = (asc[asc.length - 1].moodScore - asc[0].moodScore) / (asc.length - 1);
     if (slope < -1.5) {
       adjust -= 3;
-      reasons.push("最近几次在往下走");
+      reasons.push("在往下走");
     }
   }
 
   if (last5.length >= 4 && stdDev(last5.map((r) => r.moodScore)) > 15) {
     adjust -= 2;
-    reasons.push("波动比较大");
+    reasons.push("波动大");
   }
 
   if (latest?.followUps.some((f) => f.done === "unset")) {
     adjust -= 1;
-    reasons.push("上次的建议还没跟进");
+    reasons.push("有建议没跟进");
   }
 
   const week = recent.filter((r) => Date.now() - r.finishedAt <= 7 * DAY);
@@ -50,7 +50,7 @@ export function computeInterval(records: QuizRecord[], settings: MoodSettings): 
       reasons.push("状态稳定");
     } else {
       adjust += 2;
-      reasons.push("这周测得够勤");
+      reasons.push("测得够勤");
     }
   } else if (week.length === 1 && week[0].moodScore > 75) {
     adjust += 1;

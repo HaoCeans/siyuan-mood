@@ -35,7 +35,7 @@
             @click="moodNameChoice = moodNameChoice === word ? '' : word"
           >
             <img
-              v-if="wordIconFile(word)"
+              v-if="state.settings.checkinIcons && wordIconFile(word)"
               class="mood-emoji-img"
               :src="iconUrl(wordIconFile(word))"
               alt=""

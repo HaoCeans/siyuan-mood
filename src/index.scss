@@ -73,9 +73,21 @@
 }
 
 .mood-header__hint {
+  min-width: 0;
+}
+
+.mood-header__hint-main {
   font-size: 13px;
+  font-weight: 600;
+  color: var(--b3-theme-on-background);
+  line-height: 1.5;
+}
+
+.mood-header__hint-sub {
+  font-size: 11px;
   color: var(--b3-theme-on-surface);
-  word-break: break-word;
+  margin-top: 2px;
+  line-height: 1.5;
 }
 
 .mood-tabs {
@@ -585,14 +597,14 @@
 // 打卡带：每天一根圆角轨道，一天内的记录从下往上按时间排
 .mood-strip {
   display: flex;
-  gap: 4px;
+  gap: 3px;
   align-items: flex-end;
   overflow-x: auto;
   padding-bottom: 2px;
 
   &__col {
     flex: 1;
-    min-width: 22px;
+    min-width: 18px;
     display: flex;
     flex-direction: column;
     align-items: center;

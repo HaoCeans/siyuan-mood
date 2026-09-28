@@ -30,7 +30,7 @@ import { computed } from 'vue'
 import { familyOf, weatherLabel } from '@/quiz/emotions'
 import { t } from '@/plugin'
 import type { CheckIn } from '@/types/mood'
-import { dayStart, formatMonthDay, formatTime, pad2 } from '@/utils/dom'
+import { dayStart, formatMonthDay, formatTime } from '@/utils/dom'
 
 const props = defineProps<{ checkins: CheckIn[]; days?: number }>()
 
@@ -58,9 +58,13 @@ const columns = computed<StripColumn[]>(() => {
     // 一天最多显示 4 个点，超出以最靠近现在的为准
     const entries = (byDay.get(day) || []).slice().sort((a, b) => a.at - b.at).slice(-4);
     const d = new Date(day);
+    // 日期只显示「几号」防拥挤；月初用 10/1 标出月份，今天用文字
+    let label = String(d.getDate());
+    if (i === 0) label = t('today');
+    else if (d.getDate() === 1) label = `${d.getMonth() + 1}/${d.getDate()}`;
     result.push({
       day,
-      label: i === 0 ? t('today') : `${pad2(d.getMonth() + 1)}/${pad2(d.getDate())}`,
+      label,
       today: i === 0,
       entries,
     });
