@@ -542,7 +542,8 @@ import AnswerMatrix from '@/components/AnswerMatrix.vue'
 const props = defineProps<{ recordId: string; embedded?: boolean }>()
 const emit = defineEmits<{ back: [] }>()
 
-const showAnswers = ref(false)
+// 作答矩阵默认展开：点开一条记录最想看的就是它
+const showAnswers = ref(true)
 const confirmingDelete = ref(false)
 
 const record = computed(() => state.records.find((r) => r.id === props.recordId))

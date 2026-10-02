@@ -223,9 +223,8 @@ export function openCheckInDialog(): void {
   <input class="mood-input" id="mood-checkin-custom" type="text" placeholder="${escapeHtml(t("checkinCustomPlaceholder"))}">
   <div class="mood-setting-note" style="margin-top:10px">${escapeHtml(t("checkinWeatherTitle"))}</div>
   <div class="mood-chips mood-checkin-grid" id="mood-checkin-weather"></div>
-  <div class="mood-setting-note" style="margin-top:10px">${escapeHtml(t("checkinNoteTitle"))}</div>
-  <input class="mood-input" id="mood-checkin-note" type="text" maxlength="120" placeholder="${escapeHtml(t("checkinNotePlaceholder"))}">
-  <div class="mood-checkin-actions"><button class="mood-btn" id="mood-checkin-quiz">${escapeHtml(t("startQuiz"))}</button><button class="mood-btn mood-btn--primary" id="mood-checkin-save" disabled>${escapeHtml(t("checkinSaveButton"))}</button></div>
+  <input class="mood-input" id="mood-checkin-note" type="text" maxlength="120" style="display:none">
+  <div class="mood-checkin-actions"><button class="mood-btn mood-btn--tonal" id="mood-checkin-quiz">${escapeHtml(t("startQuiz"))}</button><button class="mood-btn mood-checkin-note-btn" id="mood-checkin-note-toggle" type="button">${escapeHtml(t("checkinNoteTitle"))}</button><button class="mood-btn mood-btn--primary" id="mood-checkin-save" disabled>${escapeHtml(t("checkinSaveButton"))}</button></div>
   <div class="mood-suggest" id="mood-checkin-suggest" style="display:none"></div>
 </div>`,
     width: isMobile() ? "92vw" : "380px",
@@ -260,12 +259,25 @@ export function openCheckInDialog(): void {
   const panel = dialog.element.querySelector("#mood-checkin-suggest") as HTMLElement | null;
   const input = dialog.element.querySelector("#mood-checkin-custom") as HTMLInputElement | null;
   const noteInput = dialog.element.querySelector("#mood-checkin-note") as HTMLInputElement | null;
+  const noteToggle = dialog.element.querySelector("#mood-checkin-note-toggle") as HTMLElement | null;
   const saveButton = dialog.element.querySelector("#mood-checkin-save") as HTMLButtonElement | null;
   const quizButton = dialog.element.querySelector("#mood-checkin-quiz") as HTMLButtonElement | null;
-  if (!grid || !panel || !input || !noteInput || !saveButton || !weatherGrid || !quizButton) {
+  if (!grid || !panel || !input || !noteInput || !noteToggle || !saveButton || !weatherGrid || !quizButton) {
     dialog.destroy();
     return;
   }
+
+  // 「记件事」开关按钮：默认收起省空间，点开才出输入框（留白，想到什么写什么）；保存后收回
+  const setNoteVisible = (visible: boolean): void => {
+    noteInput.style.display = visible ? "" : "none";
+    noteToggle.classList.toggle("mood-checkin-note-btn--on", visible);
+  };
+  setNoteVisible(false);
+  noteToggle.addEventListener("click", () => {
+    const visible = noteInput.style.display !== "none";
+    setNoteVisible(!visible);
+    if (!visible) noteInput.focus();
+  });
 
   // 左下角「开始问答」：打卡弹窗退场，切到正式问答（问答自己有防重复打开的守卫）
   quizButton.addEventListener("click", () => {
@@ -396,6 +408,7 @@ export function openCheckInDialog(): void {
       for (const word of chips.keys()) refreshChip(word);
       input.value = "";
       noteInput.value = "";
+      setNoteVisible(false);
       refreshSave();
 
       requestToken++;
