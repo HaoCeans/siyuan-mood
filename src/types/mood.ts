@@ -204,6 +204,23 @@ export interface CheckinSuggestLogEntry {
   text: string;
 }
 
+/** 问答对话的一条消息 */
+export interface ChatMessage {
+  role: "user" | "assistant";
+  text: string;
+  at: number;
+  /** 请求失败等系统提示，界面上按失败样式渲染 */
+  error?: boolean;
+}
+
+/** 一段问答会话：分析师读过全部心情记录后的对话，全部存档作参考 */
+export interface ChatSession {
+  id: string;
+  title: string;
+  createdAt: number;
+  messages: ChatMessage[];
+}
+
 // **************************************** Settings ****************************************
 
 export interface MoodSettings {

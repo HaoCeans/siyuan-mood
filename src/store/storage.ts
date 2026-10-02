@@ -9,6 +9,8 @@ export const KEY_REPORT = "report";
 export const KEY_CHECKINS = "checkins";
 /** 快速打卡后 AI 小建议的最近几条，让下一次换角度，不再句句相同 */
 export const KEY_SUGGEST_LOG = "checkinSuggestLog";
+/** 侧边栏「问答」的会话存档 */
+export const KEY_CHATS = "chatSessions";
 
 /** 明细按月分片，避免单文件随记录增长越来越慢 */
 export function monthKey(ts: number): string {

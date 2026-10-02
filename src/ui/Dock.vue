@@ -136,9 +136,10 @@
       </template>
       <StatsView v-else-if="state.tab === 'stats'" />
       <RecordTable
-        v-else
+        v-else-if="state.tab === 'table'"
         @open="openRecord"
       />
+      <ChatView v-else />
     </div>
 
     <div class="mood-footer">
@@ -165,6 +166,7 @@ import { t, getPlugin } from '@/plugin'
 import RecordCard from '@/ui/RecordCard.vue'
 import RecordDetail from '@/ui/RecordDetail.vue'
 import RecordTable from '@/ui/RecordTable.vue'
+import ChatView from '@/ui/ChatView.vue'
 import StatsView from '@/ui/StatsView.vue'
 import { moodLevel } from '@/quiz/score'
 import { latestRecord, latestCheckIn, sortedRecords, state, type ViewTab } from '@/store'
@@ -177,6 +179,7 @@ const tabs: { key: ViewTab; label: string }[] = [
   { key: 'records', label: t('tabRecords') },
   { key: 'stats', label: t('tabStats') },
   { key: 'table', label: t('tabTable') },
+  { key: 'chat', label: t('tabChat') },
 ]
 
 const records = computed(() => sortedRecords())

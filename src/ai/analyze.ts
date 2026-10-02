@@ -1,9 +1,9 @@
 /** AI 解读：组装提示词 → 调用内核 AI → 解析 JSON → 写回记录 */
-import { buildAnalysisPrompt, buildCheckinSuggestionPrompt, buildFollowReviewPrompt, buildReportPrompt, parseAnalysis, parseFollowReview } from "@/ai/prompts";
+import { buildAnalysisPrompt, buildChatPrompt, buildCheckinSuggestionPrompt, buildFollowReviewPrompt, buildReportPrompt, parseAnalysis, parseFollowReview } from "@/ai/prompts";
 import { askSiyuanAi } from "@/ai/siyuanAi";
 import { beginAi, endAi } from "@/ai/busy";
 import { cleanKramdown, getBlockKramdown } from "@/api";
-import { putRecord, rememberCheckinSuggestion, saveReport, sortedRecords, state } from "@/store";
+import { activeChat, appendChatMessage, createChatSession, putRecord, rememberCheckinSuggestion, saveReport, sortedRecords, state } from "@/store";
 import type { CheckIn, QuizRecord } from "@/types/mood";
 import { dayStart } from "@/utils/dom";
 
@@ -221,5 +221,54 @@ export async function generateReport(rangeDays = 30): Promise<AnalyzeOutcome> {
     return { ok: true };
   } finally {
     state.reportRunning = false;
+  }
+}
+
+/**
+ * 侧边栏「问答」：把本会话历史 + 全部心情数据交给 AI，多轮记忆由我们自己在提示词里拼
+ * （内核 chatGPT 接口每次都会 Clear context，不依赖它的全局上下文，避免串扰别的解读）。
+ * 每轮的用户消息与 AI 回复都即时落库，作为参考存档。
+ */
+export async function sendChatMessage(text: string, recordIds: string[] = []): Promise<{ ok: boolean; message?: string }> {
+  const question = text.trim();
+  if (!question) return { ok: false, message: "先写点什么" };
+  if (!state.settings.ai.enabled) return { ok: false, message: "AI 解读已在设置里关闭" };
+
+  let session = activeChat();
+  if (!session) session = await createChatSession();
+  const sessionId = session.id;
+
+  await appendChatMessage(sessionId, { role: "user", text: question, at: Date.now() });
+  // 历史快照在发送前固定：请求期间用户切走会话也不会拼错上下文
+  const history = session.messages.slice(0, -1);
+  // 点选的记录卡片：按点击顺序取完整记录，圈定分析重点
+  const attached = recordIds
+    .map((id) => state.records.find((r) => r.id === id))
+    .filter((r): r is QuizRecord => !!r);
+  beginAi();
+  try {
+    const result = await askSiyuanAi(
+      buildChatPrompt({
+        records: sortedRecords().slice(0, 20),
+        checkins: state.checkins.slice(0, 10),
+        history,
+        question,
+        extra: state.settings.ai.promptExtra,
+        attached,
+      }),
+    );
+    if (!result.ok) {
+      const message = result.reason === "empty" ? "尚未在「设置 → AI」中配置模型" : "AI 请求失败，稍后重试";
+      await appendChatMessage(sessionId, { role: "assistant", text: message, at: Date.now(), error: true });
+      return { ok: false, message };
+    }
+    await appendChatMessage(sessionId, { role: "assistant", text: result.markdown.trim() || "（AI 没有返回内容）", at: Date.now() });
+    return { ok: true };
+  } catch (err) {
+    console.error("[mood] chat failed", err);
+    await appendChatMessage(sessionId, { role: "assistant", text: "AI 请求失败，稍后重试", at: Date.now(), error: true });
+    return { ok: false };
+  } finally {
+    endAi();
   }
 }

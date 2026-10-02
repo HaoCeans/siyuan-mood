@@ -1,10 +1,18 @@
 /** 提示词模板：首次解读 / 复测对比 / 周报。全部要求只输出 JSON，解析失败时兜底渲染原文 */
 import { DIMENSION_MAP } from "@/types/mood";
-import type { CheckIn, QuizQuestion, QuizRecord } from "@/types/mood";
+import type { ChatMessage, CheckIn, QuizQuestion, QuizRecord } from "@/types/mood";
 import { normalizeAiQuestions } from "@/quiz/markdownBank";
 import { weatherLabel } from "@/quiz/emotions";
 import { answerText } from "@/quiz/score";
 import { formatDateTime, formatMonthDay, formatTime } from "@/utils/dom";
+
+/**
+ * 统一的人设模板，所有 AI 入口共用一段开头。
+ * 「知识渊博」落在知识背景上；「温和、不评判、不诊断」是本插件从设计文档起就定死的底线；
+ * 身份与插件名「AI 心情分析师」对齐，不再叫教练。
+ */
+const PERSONA =
+  "你是「AI 心情分析师」，一位知识渊博、温和、不评判的情绪分析师：熟悉情绪心理学、正念、行为激活这些日常可用的方法，擅长从记录与轨迹里看出模式；你只描述此刻与趋势，不做医学诊断，不使用人格标签，措辞永远口语、温和。";
 
 const JSON_ONLY = "请只输出一个 JSON 对象，不要输出任何解释性文字，不要使用代码块围栏。";
 
@@ -18,6 +26,7 @@ const TONE_RULES = [
   "用户勾选的身体信号（睡眠、食欲、动力、社交等）是情绪的前体，分析时把它们和情绪名称联系起来。",
   "若有「最近快速打卡」，把它当成一天内更细的轨迹：早晚状态的变化、反复出现的词，都值得在 analysis 里点出来。打卡里带「记：…」的是用户顺手写的事件（当时经历了什么）：事件往往是情绪的来源，把情绪和事件对应起来分析，这是比分数更有价值的线索。",
   "「绑定的思源块」是用户自己写的相关记录（最近的经历、日记等）：从里面找与情绪对应的具体线索（事件、对话、时间点），在 analysis 里点出来它们和情绪的对应关系；引用要短，不要大段摘抄。",
+  "日期一律写成「10月1日」这种中文格式，不要写 10-01、10/01 这种数字格式。",
   "排版要求：analysis 和 changes 必须用 Markdown——拆成 2-3 个短段落，每段以**加粗的小标题**开头（如 **变化**、**模式**、**为什么**），段落之间空一行；能分点的写成 - 列表。绝不允许写成一大段。多用这些样式让阅读更容易：**加粗**关键发现、==高亮==最值得注意的一句、- 列表罗列并列的点；对比分数时写「75 → 67」这种箭头形式。可用的强调样式：**加粗**、*斜体*、==高亮==、<u>下划线</u>、~~删除线~~；除这五种外不要输出其它 HTML 标签。practice 一句话即可。",
 ];
 
@@ -115,7 +124,8 @@ export function buildAnalysisPrompt(params: {
     ? SCHEMA
     : SCHEMA.replace(/\n}$/, ',\n  "changes": "**分数**：和上次比哪里动了\\n**原因**：结合打卡轨迹推测为什么\\n**上次的建议**：哪条有效、哪条卡住（可分点）"\n}');
 
-  return `你是一位温和、不评判的情绪觉察教练。下面是用户刚刚完成的一次心情自评（只问此刻的状态）。
+  return `${PERSONA}
+下面是用户刚刚完成的一次心情自评（只问此刻的状态）。
 ${JSON_ONLY}
 
 ${historyBlock(history)}${checkinBlock}${boundBlock}<本次作答>
@@ -167,7 +177,8 @@ export function buildFollowReviewPrompt(record: QuizRecord, checkins: CheckIn[] 
     ? `\n<测评之后的打卡轨迹>\n（从那次测评到现在，用户随手记的，按时间排）\n${checkinLines}\n</测评之后的打卡轨迹>\n`
     : "";
 
-  return `你是一位温和、不评判的情绪觉察教练。用户此前做过一次心情自评，你给过建议；现在他回来标记了每条建议的执行情况。
+  return `${PERSONA}
+用户此前做过一次心情自评，你给过建议；现在他回来标记了每条建议的执行情况。
 ${JSON_ONLY}
 
 <当时的记录>
@@ -263,7 +274,8 @@ export function buildCheckinSuggestionPrompt(params: {
     ? `\n<最近已经给过的建议>\n${recent.map((text) => `- ${text}`).join("\n")}\n</最近已经给过的建议>\n`
     : "";
 
-  return `你是一位温和、不评判的情绪觉察教练。用户刚随手记录了一次此刻的心情（快速打卡），下面是他最近的打卡轨迹（从新到旧，▶ 是刚打卡的）。
+  return `${PERSONA}
+用户刚随手记录了一次此刻的心情（快速打卡），下面是他最近的打卡轨迹（从新到旧，▶ 是刚打卡的）。
 请把刚打卡的这条放进整段轨迹里连贯地看，而不是单独评论这一句：
 - 和最近几次一致（比如连着几天都累）→ 顺着这个持续的状态往下说；
 - 相比最近出现了转折（上午平静、下午转累；连日低落后今天转好）→ 点出这个变化，建议跟着变化走；
@@ -316,7 +328,8 @@ export function buildReportPrompt(records: QuizRecord[], rangeDays: number, chec
     ? `\n<这段时间的快速打卡>\n（按时间排）\n${checkinLines}\n</这段时间的快速打卡>\n`
     : "";
 
-  return `你是一位温和、不评判的情绪觉察教练。下面是用户最近 ${rangeDays} 天的心情记录。
+  return `${PERSONA}
+下面是用户最近 ${rangeDays} 天的心情记录。
 ${JSON_ONLY}
 
 <记录>
@@ -340,6 +353,109 @@ ${followBlock}${checkinBlock}
   "practice": "一句话提醒"
 }
 </输出格式>`;
+}
+
+/** 「问答」里被点名记录的完整明细：维度、作答、跟进一次性给全，让分析师逐条深读 */
+function recordDetailBlock(record: QuizRecord): string {
+  const follow = record.followUps
+    .filter((f) => f.done !== "unset")
+    .map((f) => {
+      const done = f.done === "yes" ? "做了" : f.done === "partial" ? "做了一部分" : "没做";
+      const extra = [typeof f.feeling === "number" ? `之后心情 ${f.feeling}/5` : "", f.blocker ? `卡在${f.blocker}` : ""]
+        .filter(Boolean)
+        .join("，");
+      return `- ${f.adviceText} —— ${done}${extra ? `（${extra}）` : ""}`;
+    })
+    .join("\n");
+  return [
+    `${formatDateTime(record.finishedAt)}｜心情分 ${record.moodScore}｜情绪名：${record.moodName || "未命名"}`,
+    record.signals?.length ? `身体信号：${record.signals.join("、")}` : "",
+    `维度得分：${dimensionLine(record)}`,
+    "作答明细：",
+    answerLines(record) || "（无）",
+    follow ? `建议执行：\n${follow}` : "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+/** 侧边栏「问答」：分析师读过全部心情记录后与用户自由对话，输出短 Markdown（不是 JSON） */
+export function buildChatPrompt(params: {
+  records: QuizRecord[];
+  checkins: CheckIn[];
+  /** 本会话已有的对话（旧 → 新，不含本次提问），跨轮次记忆靠它 */
+  history: ChatMessage[];
+  question: string;
+  /** 设置里「追加提示词」的内容，问答同样尊重用户的自定义要求 */
+  extra?: string;
+  /** 用户在输入区点选的记录卡片：分析重点圈定到这几条 */
+  attached?: QuizRecord[];
+}): string {
+  const { records, checkins, history, question, extra, attached } = params;
+
+  const recordLines = records
+    .map(
+      (r) =>
+        `${formatDateTime(r.finishedAt)}｜心情分 ${r.moodScore}｜${r.moodName || "未命名"}｜${(r.ai.keywords || r.keywordLocal).join("、") || "无"}｜${r.dimensionScores ? Object.entries(r.dimensionScores).map(([k, v]) => `${DIMENSION_MAP[k as keyof typeof DIMENSION_MAP]?.name || k} ${v}`).join(" ") : ""}`,
+    )
+    .join("\n");
+
+  const followLines = records
+    .flatMap((r) =>
+      r.followUps
+        .filter((f) => f.done !== "unset")
+        .map((f) => {
+          const done = f.done === "yes" ? "做了" : f.done === "partial" ? "做了一部分" : "没做";
+          const extra = [typeof f.feeling === "number" ? `之后心情 ${f.feeling}/5` : "", f.blocker ? `卡在${f.blocker}` : ""]
+            .filter(Boolean)
+            .join("，");
+          return `- ${formatMonthDay(r.finishedAt)} ${f.adviceText} —— ${done}${extra ? `（${extra}）` : ""}`;
+        }),
+    )
+    .slice(0, 10);
+
+  const checkinLines = checkins.map((entry) => checkinLine(entry)).join("\n");
+
+  // 对话历史：单条截断防跑题长文撑爆上下文，轮数封顶保住数据区的篇幅
+  const historyLines = history
+    .slice(-12)
+    .map((m) => `${m.role === "user" ? "[用户]" : "[分析师]"} ${truncateText(m.text, 400)}`)
+    .join("\n");
+  const historyBlock = historyLines ? `\n<之前的对话>\n${historyLines}\n</之前的对话>\n` : "";
+
+  const attachedBlock = attached?.length
+    ? `\n<用户指定的记录>\n（用户点名要看这几条，重点围绕它们回答，可直接引用作答明细）\n${attached
+        .map((record) => recordDetailBlock(record))
+        .join("\n\n")}\n</用户指定的记录>\n`
+    : "";
+
+  return `${PERSONA}
+用户在侧边栏的「问答」里向你提问，下面是他全部的心情数据。
+回答基于数据、具体到分数和日期，不编造数据里没有的信息；不做医学诊断，不使用「你有……症」「你是……型人格」这类标签；语气温和、口语一点，像聊天气而不是念报告。
+
+<正式测评记录>（从新到旧）
+${recordLines || "（还没有正式测评记录）"}
+</正式测评记录>
+
+<建议执行情况>
+${followLines.length ? followLines.join("\n") : "（还没有跟进过建议）"}
+</建议执行情况>
+
+<快速打卡轨迹>
+${checkinLines || "（还没有快速打卡）"}
+</快速打卡轨迹>
+${historyBlock}${attachedBlock}
+<本次提问>
+${truncateText(question, 600)}
+</本次提问>
+
+<输出要求>
+1. 直接回答问题本身，不写开场白和客套；若附带了「用户指定的记录」，就围绕它们重点分析。
+2. Markdown 轻量排版：**加粗**关键结论、需要时用 - 列表；分数对比写「75 → 67」。
+3. 长度跟着问题走：简单问题两三句话，分析类问题可以分点展开，但不要为长而长。
+4. 合适时在结尾给 1 个马上能做的小动作，不给就不硬给。
+5. 日期写成「10月1日」这种中文格式，不要 10-01、10/01。
+${extra ? `6. 用户还希望：${extra}` : ""}
+</输出要求>`;
 }
 
 /** 从 AI 返回里抠出 JSON：先找围栏，再退化为括号配对 */

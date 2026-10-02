@@ -7,8 +7,10 @@ import { BUILTIN_QUESTIONS } from "@/quiz/bank";
 import { EMOTION_WORDS } from "@/quiz/emotions";
 import { summarizeAnswers } from "@/quiz/score";
 import { computeDueAt, computeInterval } from "@/stats/interval";
-import { KEY_BANK, KEY_CHECKINS, KEY_INDEX, KEY_REPORT, KEY_SETTINGS, KEY_SUGGEST_LOG, monthKey, readData, writeData } from "@/store/storage";
+import { KEY_BANK, KEY_CHATS, KEY_CHECKINS, KEY_INDEX, KEY_REPORT, KEY_SETTINGS, KEY_SUGGEST_LOG, monthKey, readData, writeData } from "@/store/storage";
 import type {
+  ChatMessage,
+  ChatSession,
   CheckIn,
   CheckinSuggestLogEntry,
   ImportedBank,
@@ -22,7 +24,7 @@ import type {
 } from "@/types/mood";
 import { makeRecordId } from "@/utils/dom";
 
-export type ViewTab = "records" | "stats" | "table";
+export type ViewTab = "records" | "stats" | "table" | "chat";
 
 export function defaultSettings(): MoodSettings {
   return {
@@ -55,6 +57,9 @@ export const state = reactive({
   checkins: [] as CheckIn[],
   /** 快速打卡 AI 小建议的最近几条，新的在前 */
   checkinSuggestLog: [] as CheckinSuggestLogEntry[],
+  /** 问答会话，新的在前；activeChatId 指向当前会话 */
+  chatSessions: [] as ChatSession[],
+  activeChatId: "",
   tab: "records" as ViewTab,
   detailId: "",
   /** 有 AI 请求在跑 */
@@ -95,6 +100,12 @@ export async function loadAll(): Promise<void> {
     (s) => s && typeof s.at === "number" && typeof s.text === "string",
   );
 
+  const chats = await readData<ChatSession[]>(KEY_CHATS, []);
+  state.chatSessions = (Array.isArray(chats) ? chats : []).filter(
+    (c) => c && typeof c.id === "string" && Array.isArray(c.messages),
+  ).sort((a, b) => b.createdAt - a.createdAt);
+  state.activeChatId = state.chatSessions[0]?.id || "";
+
   const index = await readData<RecordIndexEntry[]>(KEY_INDEX, []);
   const months = Array.from(new Set(index.filter((e) => e && e.finishedAt).map((e) => monthKey(e.finishedAt))));
   const records: QuizRecord[] = [];
@@ -128,6 +139,47 @@ export async function addCheckIn(word: string, weather?: string, note?: string):
   state.checkins = [entry, ...state.checkins];
   await writeData(KEY_CHECKINS, state.checkins);
   return entry;
+}
+
+// **************************************** 问答对话 ****************************************
+
+async function persistChats(): Promise<void> {
+  await writeData(KEY_CHATS, state.chatSessions);
+}
+
+export function activeChat(): ChatSession | undefined {
+  return state.chatSessions.find((c) => c.id === state.activeChatId);
+}
+
+/** 开一段新对话；没有会话时也用它兜底创建第一条 */
+export async function createChatSession(): Promise<ChatSession> {
+  const session: ChatSession = { id: makeRecordId(Date.now()), title: "新对话", createdAt: Date.now(), messages: [] };
+  state.chatSessions = [session, ...state.chatSessions];
+  state.activeChatId = session.id;
+  await persistChats();
+  return session;
+}
+
+export async function switchChat(id: string): Promise<void> {
+  state.activeChatId = id;
+}
+
+export async function appendChatMessage(sessionId: string, message: ChatMessage): Promise<void> {
+  const session = state.chatSessions.find((c) => c.id === sessionId);
+  if (!session) return;
+  session.messages.push(message);
+  // 首条用户消息作为会话标题，一眼认出每段对话聊的是什么
+  if (session.title === "新对话" && message.role === "user") {
+    session.title = message.text.slice(0, 16) || session.title;
+  }
+  await persistChats();
+}
+
+export async function deleteChatSession(id: string): Promise<void> {
+  state.chatSessions = state.chatSessions.filter((c) => c.id !== id);
+  if (state.activeChatId === id) state.activeChatId = state.chatSessions[0]?.id || "";
+  await persistChats();
+  if (!state.chatSessions.length) await createChatSession();
 }
 
 /** 记住最近给过的打卡小建议（留 5 条），下一次提示词里要求 AI 换角度 */

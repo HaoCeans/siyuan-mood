@@ -1,6 +1,6 @@
 {
   "name": "siyuan-mood",
-  "version": "0.6.0",
+  "version": "1.0.0",
   "type": "module",
   "description": "Mood tracker plugin for SiYuan: random mood quiz, AI reading, follow-up and trends",
   "author": "",

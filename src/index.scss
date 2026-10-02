@@ -1775,3 +1775,186 @@
   background: var(--b3-theme-error);
   pointer-events: none;
 }
+
+// 问答 Tab：会话条 + 气泡消息区 + 底部输入区，参考思源智能体对话的布局
+.mood-chat {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  &__bar {
+    flex: none;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  &__sessions {
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__bar-btn {
+    flex: none;
+    width: 28px;
+    padding: 0;
+    text-align: center;
+
+    &--danger {
+      color: var(--b3-theme-error);
+      border-color: var(--b3-theme-error);
+    }
+  }
+
+  &__list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 2px;
+  }
+
+  &__empty {
+    margin: auto;
+    text-align: center;
+    color: var(--b3-theme-on-surface);
+    font-size: 13px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 0 12px;
+  }
+
+  &__empty-main {
+    line-height: 1.7;
+  }
+
+  &__starters {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__starter {
+    border: 1px dashed var(--b3-border-color);
+    border-radius: var(--b3-border-radius);
+    background: var(--b3-theme-surface);
+    color: var(--b3-theme-on-background);
+    font-size: 12px;
+    padding: 6px 10px;
+    cursor: pointer;
+
+    &:hover {
+      border-color: var(--b3-theme-primary);
+      color: var(--b3-theme-primary);
+    }
+  }
+
+  &__msg {
+    display: flex;
+    flex-direction: column;
+    max-width: 88%;
+
+    &--user {
+      align-self: flex-end;
+      align-items: flex-end;
+    }
+
+    &--assistant {
+      align-self: flex-start;
+      align-items: flex-start;
+    }
+  }
+
+  &__bubble {
+    border-radius: var(--b3-border-radius-b);
+    padding: 7px 10px;
+    font-size: 13px;
+    line-height: 1.7;
+    word-break: break-word;
+
+    // 用户：右对齐浅主题色气泡；AI：左对齐带边框气泡，像智能体那样分侧
+    .mood-chat__msg--user & {
+      background: var(--b3-theme-primary-lightest);
+      color: var(--b3-theme-on-background);
+    }
+
+    .mood-chat__msg--assistant & {
+      background: var(--b3-theme-surface);
+      border: 1px solid var(--b3-border-color);
+    }
+
+    &--error {
+      border-color: var(--b3-theme-error) !important;
+      color: var(--b3-theme-error);
+    }
+  }
+
+  &__time {
+    margin-top: 2px;
+    font-size: 10px;
+    color: var(--b3-theme-on-surface);
+    opacity: 0.6;
+  }
+
+  // 最近记录卡片点选行：横向滚动，选中即圈定为本次分析对象
+  &__attach {
+    flex: none;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
+
+  &__attach-chip {
+    flex: none;
+    border: 1px solid var(--b3-border-color);
+    border-radius: 999px;
+    background: var(--b3-theme-surface);
+    color: var(--b3-theme-on-surface);
+    font-size: 11px;
+    padding: 3px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+
+    &:hover {
+      border-color: var(--b3-theme-primary);
+    }
+
+    &--on {
+      border-color: var(--b3-theme-primary);
+      background: var(--b3-theme-primary-lightest);
+      color: var(--b3-theme-primary);
+    }
+
+    // 最新一条：常驻浅主题色底，和后面的历史卡片区分开
+    &--latest:not(&--on) {
+      background: var(--b3-theme-primary-lightest);
+      border-color: transparent;
+    }
+  }
+
+  &__inputrow {
+    flex: none;
+    display: flex;
+    gap: 6px;
+    align-items: flex-end;
+  }
+
+  &__draft {
+    flex: 1;
+    min-width: 0;
+    resize: none;
+    line-height: 1.5;
+  }
+
+  &__send {
+    flex: none;
+    height: 40px;
+    padding: 0 14px;
+  }
+}
