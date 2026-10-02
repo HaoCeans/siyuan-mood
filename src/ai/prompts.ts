@@ -16,7 +16,7 @@ const TONE_RULES = [
   "如果心情分低于 20，第一条 advice 以安抚身体为主，不布置任务。",
   "情绪标注（给情绪起名字）本身就有调节作用。用户起了名字就在 analysis 里回应它；没起名或写了「说不上来」，就温和地给 1-2 个可能的候选词帮他把感受标出来，不要替他下结论。",
   "用户勾选的身体信号（睡眠、食欲、动力、社交等）是情绪的前体，分析时把它们和情绪名称联系起来。",
-  "若有「最近快速打卡」，把它当成一天内更细的轨迹：早晚状态的变化、反复出现的词，都值得在 analysis 里点出来。",
+  "若有「最近快速打卡」，把它当成一天内更细的轨迹：早晚状态的变化、反复出现的词，都值得在 analysis 里点出来。打卡里带「记：…」的是用户顺手写的事件（当时经历了什么）：事件往往是情绪的来源，把情绪和事件对应起来分析，这是比分数更有价值的线索。",
   "「绑定的思源块」是用户自己写的相关记录（最近的经历、日记等）：从里面找与情绪对应的具体线索（事件、对话、时间点），在 analysis 里点出来它们和情绪的对应关系；引用要短，不要大段摘抄。",
   "排版要求：analysis 和 changes 必须用 Markdown——拆成 2-3 个短段落，每段以**加粗的小标题**开头（如 **变化**、**模式**、**为什么**），段落之间空一行；能分点的写成 - 列表。绝不允许写成一大段。多用这些样式让阅读更容易：**加粗**关键发现、==高亮==最值得注意的一句、- 列表罗列并列的点；对比分数时写「75 → 67」这种箭头形式。可用的强调样式：**加粗**、*斜体*、==高亮==、<u>下划线</u>、~~删除线~~；除这五种外不要输出其它 HTML 标签。practice 一句话即可。",
 ];
@@ -36,6 +36,22 @@ function answerLines(record: QuizRecord): string {
       return `- [${dim}] ${a.questionText} → ${answerText(a)}`;
     })
     .join("\n");
+}
+
+/** 事件记录进提示词时截断，避免一段长叙事挤占上下文 */
+function truncateText(text: string, max: number): string {
+  const trimmed = text.trim();
+  return trimmed.length > max ? `${trimmed.slice(0, max)}…` : trimmed;
+}
+
+/**
+ * 打卡轨迹的统一行格式：时间 + 情绪词 + 天气 + 事件（用户顺手记的）。
+ * mark 用于在「打卡小建议」里标出刚打卡的条目（▶），其余场景留空。
+ */
+function checkinLine(entry: CheckIn, mark = ""): string {
+  const weather = entry.weather ? `（天气：${weatherLabel(entry.weather)}）` : "";
+  const note = entry.note ? `｜记：${truncateText(entry.note, 60)}` : "";
+  return `- ${mark}${mark ? " " : ""}${formatMonthDay(entry.at)} ${formatTime(entry.at)} ${entry.word}${weather}${note}`;
 }
 
 function dimensionLine(record: QuizRecord): string {
@@ -83,7 +99,7 @@ export function buildAnalysisPrompt(params: {
   const first = !history.length;
 
   const checkinLines = (checkins || [])
-    .map((entry) => `- ${formatMonthDay(entry.at)} ${formatTime(entry.at)} ${entry.word}`)
+    .map((entry) => checkinLine(entry))
     .join("\n");
   const checkinBlock = checkinLines
     ? `\n最近快速打卡（用户随时记的，一天内可能有多次）：\n${checkinLines}\n`
@@ -145,10 +161,7 @@ export function buildFollowReviewPrompt(record: QuizRecord, checkins: CheckIn[] 
 
   // 做完建议之后的打卡轨迹（按时间从旧到新）：效果好不好，不能只听标记，还要看状态怎么走
   const checkinLines = checkins
-    .map((entry) => {
-      const weather = entry.weather ? `（天气：${weatherLabel(entry.weather)}）` : "";
-      return `- ${formatMonthDay(entry.at)} ${formatTime(entry.at)} ${entry.word}${weather}`;
-    })
+    .map((entry) => checkinLine(entry))
     .join("\n");
   const checkinBlock = checkinLines
     ? `\n<测评之后的打卡轨迹>\n（从那次测评到现在，用户随手记的，按时间排）\n${checkinLines}\n</测评之后的打卡轨迹>\n`
@@ -244,11 +257,7 @@ export function buildCheckinSuggestionPrompt(params: {
   const { entries, justNow, recent, latestScore } = params;
   const justIds = new Set(justNow.map((entry) => entry.id));
   const lines = entries
-    .map((entry) => {
-      const mark = justIds.has(entry.id) ? "▶" : " ";
-      const weather = entry.weather ? `（天气：${weatherLabel(entry.weather)}）` : "";
-      return `- ${mark} ${formatMonthDay(entry.at)} ${formatTime(entry.at)} ${entry.word}${weather}`;
-    })
+    .map((entry) => checkinLine(entry, justIds.has(entry.id) ? "▶" : ""))
     .join("\n");
   const recentBlock = recent.length
     ? `\n<最近已经给过的建议>\n${recent.map((text) => `- ${text}`).join("\n")}\n</最近已经给过的建议>\n`
@@ -259,6 +268,7 @@ export function buildCheckinSuggestionPrompt(params: {
 - 和最近几次一致（比如连着几天都累）→ 顺着这个持续的状态往下说；
 - 相比最近出现了转折（上午平静、下午转累；连日低落后今天转好）→ 点出这个变化，建议跟着变化走；
 - 今天第一次打卡、没有轨迹可对比 → 就只回应这一条。
+轨迹里带「记：…」的是用户顺手写下的事件（当时经历了什么）：把事件和情绪联系起来回应——事件往往就是情绪的来源。
 
 请只输出建议正文本身：一两句话、总共不超过 60 个字，给一个马上能做的小动作，或一句安抚；不诊断、不贴标签、不要任何开场白和解释。最关键的那个动作可以用 **加粗** 强调，其余格式不要用。
 
@@ -300,10 +310,7 @@ export function buildReportPrompt(records: QuizRecord[], rangeDays: number, chec
 
   // 这段时间的快速打卡（按时间排，最多 20 条）：一天内的起伏是正式测评看不到的细节
   const checkinLines = checkins
-    .map((entry) => {
-      const weather = entry.weather ? `（天气：${weatherLabel(entry.weather)}）` : "";
-      return `- ${formatMonthDay(entry.at)} ${formatTime(entry.at)} ${entry.word}${weather}`;
-    })
+    .map((entry) => checkinLine(entry))
     .join("\n");
   const checkinBlock = checkinLines
     ? `\n<这段时间的快速打卡>\n（按时间排）\n${checkinLines}\n</这段时间的快速打卡>\n`

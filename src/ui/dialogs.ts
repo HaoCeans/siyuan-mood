@@ -223,6 +223,8 @@ export function openCheckInDialog(): void {
   <input class="mood-input" id="mood-checkin-custom" type="text" placeholder="${escapeHtml(t("checkinCustomPlaceholder"))}">
   <div class="mood-setting-note" style="margin-top:10px">${escapeHtml(t("checkinWeatherTitle"))}</div>
   <div class="mood-chips mood-checkin-grid" id="mood-checkin-weather"></div>
+  <div class="mood-setting-note" style="margin-top:10px">${escapeHtml(t("checkinNoteTitle"))}</div>
+  <input class="mood-input" id="mood-checkin-note" type="text" maxlength="120" placeholder="${escapeHtml(t("checkinNotePlaceholder"))}">
   <div class="mood-checkin-actions"><button class="mood-btn" id="mood-checkin-quiz">${escapeHtml(t("startQuiz"))}</button><button class="mood-btn mood-btn--primary" id="mood-checkin-save" disabled>${escapeHtml(t("checkinSaveButton"))}</button></div>
   <div class="mood-suggest" id="mood-checkin-suggest" style="display:none"></div>
 </div>`,
@@ -241,7 +243,6 @@ export function openCheckInDialog(): void {
   if (container) {
     const dockButton = document.createElement("div");
     dockButton.className = "mood-close mood-dock-open";
-    dockButton.setAttribute("title", t("openDockPanel"));
     dockButton.innerHTML =
       '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14.5 4v16" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
     dockButton.addEventListener("click", (event) => {
@@ -258,9 +259,10 @@ export function openCheckInDialog(): void {
   const weatherGrid = dialog.element.querySelector("#mood-checkin-weather") as HTMLElement | null;
   const panel = dialog.element.querySelector("#mood-checkin-suggest") as HTMLElement | null;
   const input = dialog.element.querySelector("#mood-checkin-custom") as HTMLInputElement | null;
+  const noteInput = dialog.element.querySelector("#mood-checkin-note") as HTMLInputElement | null;
   const saveButton = dialog.element.querySelector("#mood-checkin-save") as HTMLButtonElement | null;
   const quizButton = dialog.element.querySelector("#mood-checkin-quiz") as HTMLButtonElement | null;
-  if (!grid || !panel || !input || !saveButton || !weatherGrid || !quizButton) {
+  if (!grid || !panel || !input || !noteInput || !saveButton || !weatherGrid || !quizButton) {
     dialog.destroy();
     return;
   }
@@ -381,8 +383,9 @@ export function openCheckInDialog(): void {
       if (!words.length && !custom) return;
 
       const saved: CheckIn[] = [];
-      for (const word of words) saved.push(await addCheckIn(word, weather.value || undefined));
-      if (custom) saved.push(await addCheckIn(custom, weather.value || undefined));
+      const note = noteInput.value.trim() || undefined;
+      for (const word of words) saved.push(await addCheckIn(word, weather.value || undefined, note));
+      if (custom) saved.push(await addCheckIn(custom, weather.value || undefined, note));
 
       const label = saved.map((entry) => entry.word).join("、");
       const weatherFile = weather.value ? weatherIconFile(weather.value) : "";
@@ -392,6 +395,7 @@ export function openCheckInDialog(): void {
       picked.clear();
       for (const word of chips.keys()) refreshChip(word);
       input.value = "";
+      noteInput.value = "";
       refreshSave();
 
       requestToken++;

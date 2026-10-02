@@ -194,6 +194,8 @@ export interface CheckIn {
   word: string;
   /** 顺手记的天气（emoji），会影响情绪，也值得留档 */
   weather?: string;
+  /** 顺手记的事件：当时经历了什么（可选），会进入 AI 分析 */
+  note?: string;
 }
 
 /** 快速打卡 AI 小建议的存档：只留最近几条，供下一次提示词里「别重复」用 */

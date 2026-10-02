@@ -121,9 +121,10 @@ export function latestCheckIn(): CheckIn | undefined {
   return state.checkins[0];
 }
 
-export async function addCheckIn(word: string, weather?: string): Promise<CheckIn> {
+export async function addCheckIn(word: string, weather?: string, note?: string): Promise<CheckIn> {
   const entry: CheckIn = { id: makeRecordId(Date.now()), at: Date.now(), word };
   if (weather) entry.weather = weather;
+  if (note) entry.note = note;
   state.checkins = [entry, ...state.checkins];
   await writeData(KEY_CHECKINS, state.checkins);
   return entry;
