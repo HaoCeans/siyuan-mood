@@ -2,7 +2,7 @@
   "name": "siyuan-mood",
   "author": "whale🐋",
   "url": "https://github.com/HaoCeans/siyuan-mood",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "minAppVersion": "3.8.4",
   "disabledInPublish": true,
   "backends": [

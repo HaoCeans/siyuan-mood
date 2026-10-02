@@ -493,20 +493,10 @@
         <span class="spacer" />
         <span>{{ showAnswers ? '−' : '+' }}</span>
       </div>
-      <template v-if="showAnswers">
-        <div
-          v-for="answer in record.answers"
-          :key="answer.questionId"
-          class="mood-answer"
-        >
-          <div class="mood-answer__q">
-            [{{ dimensionName(answer.dimension) }}] {{ answer.questionText }}
-          </div>
-          <div class="mood-answer__a">
-            {{ answerText(answer) }}
-          </div>
-        </div>
-      </template>
+      <AnswerMatrix
+        v-if="showAnswers"
+        :record="record"
+      />
     </div>
 
     <!-- 操作 -->
@@ -547,6 +537,7 @@ import { cleanKramdown, getBlockKramdown } from '@/api'
 import { formatDateTime, formatTime } from '@/utils/dom'
 import { md2html } from '@/utils/lute'
 import { useAiProgress } from '@/ui/useAiProgress'
+import AnswerMatrix from '@/components/AnswerMatrix.vue'
 
 const props = defineProps<{ recordId: string; embedded?: boolean }>()
 const emit = defineEmits<{ back: [] }>()

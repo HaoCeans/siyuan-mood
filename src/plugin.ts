@@ -15,6 +15,8 @@ export interface PluginHost {
   addCommand(options: any): void;
   /** 打开插件设置面板 */
   openSetting(): void;
+  /** 打开「心情」侧栏面板（桌面点 dock 图标，手机拉侧滑抽屉） */
+  openMoodPanel(): void;
   /** 「今天不再提醒」 */
   snoozeReminder(): Promise<void>;
   /** 数据变化后重算提醒状态 */

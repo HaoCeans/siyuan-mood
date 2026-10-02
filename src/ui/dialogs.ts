@@ -5,7 +5,7 @@
  * 且宽高是写在 style 属性上的内联样式，只能靠带 !important 的类覆盖（见 index.scss）。
  */
 import { Dialog, getFrontend, showMessage } from "siyuan";
-import { t } from "@/plugin";
+import { t, getPlugin } from "@/plugin";
 import { mountVue, unmountVue, type MountedApp } from "@/main";
 import QuizDialog from "@/ui/QuizDialog.vue";
 import RecordDetail from "@/ui/RecordDetail.vue";
@@ -223,26 +223,53 @@ export function openCheckInDialog(): void {
   <input class="mood-input" id="mood-checkin-custom" type="text" placeholder="${escapeHtml(t("checkinCustomPlaceholder"))}">
   <div class="mood-setting-note" style="margin-top:10px">${escapeHtml(t("checkinWeatherTitle"))}</div>
   <div class="mood-chips mood-checkin-grid" id="mood-checkin-weather"></div>
-  <div class="mood-checkin-actions"><button class="mood-btn mood-btn--primary" id="mood-checkin-save" disabled>${escapeHtml(t("checkinSaveButton"))}</button></div>
+  <div class="mood-checkin-actions"><button class="mood-btn" id="mood-checkin-quiz">${escapeHtml(t("startQuiz"))}</button><button class="mood-btn mood-btn--primary" id="mood-checkin-save" disabled>${escapeHtml(t("checkinSaveButton"))}</button></div>
   <div class="mood-suggest" id="mood-checkin-suggest" style="display:none"></div>
 </div>`,
     width: isMobile() ? "92vw" : "380px",
     height: "auto",
+    hideCloseIcon: true,
     destroyCallback: () => {
       checkinDialogInstance = null;
     },
   });
   checkinDialogInstance = dialog;
 
+  // 右上角只放「打开侧栏」按钮，两端都显示（打开逻辑在插件主体：桌面点 dock 图标，手机拉侧滑抽屉）。
+  // 不放 ×：关闭走点遮罩 / Esc / 再按一次快捷键（开关语义），且遮罩点击本来就没挡。
+  const container = dialog.element.querySelector(".b3-dialog__container");
+  if (container) {
+    const dockButton = document.createElement("div");
+    dockButton.className = "mood-close mood-dock-open";
+    dockButton.setAttribute("title", t("openDockPanel"));
+    dockButton.innerHTML =
+      '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M14.5 4v16" fill="none" stroke="currentColor" stroke-width="2"/></svg>';
+    dockButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      // 手机端弹窗全屏会盖住侧滑抽屉：先关弹窗再拉侧栏；桌面端侧栏在旁边展开，弹窗保留
+      if (isMobile()) dialog.destroy();
+      getPlugin()?.openMoodPanel();
+    });
+    container.appendChild(dockButton);
+  }
+
   const grid = dialog.element.querySelector("#mood-checkin-grid") as HTMLElement | null;
   const weatherGrid = dialog.element.querySelector("#mood-checkin-weather") as HTMLElement | null;
   const panel = dialog.element.querySelector("#mood-checkin-suggest") as HTMLElement | null;
   const input = dialog.element.querySelector("#mood-checkin-custom") as HTMLInputElement | null;
   const saveButton = dialog.element.querySelector("#mood-checkin-save") as HTMLButtonElement | null;
-  if (!grid || !panel || !input || !saveButton || !weatherGrid) {
+  const quizButton = dialog.element.querySelector("#mood-checkin-quiz") as HTMLButtonElement | null;
+  if (!grid || !panel || !input || !saveButton || !weatherGrid || !quizButton) {
     dialog.destroy();
     return;
   }
+
+  // 左下角「开始问答」：打卡弹窗退场，切到正式问答（问答自己有防重复打开的守卫）
+  quizButton.addEventListener("click", () => {
+    dialog.destroy();
+    openQuizDialog();
+  });
 
   // 连续保存时，只有最后一次请求的结果允许上屏
   let requestToken = 0;
