@@ -4,6 +4,9 @@
       v-for="column in columns"
       :key="column.day"
       class="mood-strip__col"
+      :class="{ 'mood-strip__col--open': column.entries.length }"
+      :title="column.entries.length ? tooltip(column.entries[0]) : ''"
+      @click="column.entries.length && onOpenDay?.(column.day)"
     >
       <div
         class="mood-strip__track"
@@ -32,7 +35,7 @@ import { t } from '@/plugin'
 import type { CheckIn } from '@/types/mood'
 import { dayStart, formatMonthDay, formatTime } from '@/utils/dom'
 
-const props = defineProps<{ checkins: CheckIn[]; days?: number }>()
+const props = defineProps<{ checkins: CheckIn[]; days?: number; onOpenDay?: (day: number) => void }>()
 
 interface StripColumn {
   day: number;

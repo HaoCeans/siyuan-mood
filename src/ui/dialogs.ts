@@ -12,7 +12,7 @@ import RecordDetail from "@/ui/RecordDetail.vue";
 import { analyzeRecord, fetchCheckinSuggestion } from "@/ai/analyze";
 import { addCheckIn, allCheckinWords, findRecord, state } from "@/store";
 import { familyOf, wordIconFile, wordFamily, weatherIconFile, WEATHERS, iconUrl, type EmotionFamily } from "@/quiz/emotions";
-import { escapeHtml, formatTime } from "@/utils/dom";
+import { dayStart, escapeHtml, formatTime } from "@/utils/dom";
 import { md2html } from "@/utils/lute";
 import type { CheckIn, QuizRecord } from "@/types/mood";
 
@@ -414,5 +414,89 @@ export function openCheckInDialog(): void {
       requestToken++;
       suggest(saved[0].word, saved, requestToken);
     })();
+  });
+}
+
+/**
+ * 打卡记录浏览：按天分组倒序，展示词 / 时间 / 天气 / 事件。
+ * day 传当天 0 点则只看那一天（日历与打卡带的入口）；不传看全部（侧栏底部 chip 的入口）。
+ */
+export function openCheckinRecordsDialog(day?: number): void {
+  const byDay = new Map<number, CheckIn[]>();
+  for (const entry of state.checkins) {
+    const key = dayStart(entry.at);
+    if (day && key !== day) continue;
+    const list = byDay.get(key) || [];
+    list.push(entry);
+    byDay.set(key, list);
+  }
+
+  const WEEK = ["日", "一", "二", "三", "四", "五", "六"];
+  const MAX_ENTRIES = 200;
+  let shown = 0;
+  let truncated = false;
+  const groups: string[] = [];
+  const days = [...byDay.keys()].sort((a, b) => b - a);
+  for (const groupDay of days) {
+    if (shown >= MAX_ENTRIES) {
+      truncated = true;
+      break;
+    }
+    const date = new Date(groupDay);
+    const head = `${date.getMonth() + 1}月${date.getDate()}日 周${WEEK[date.getDay()]}`;
+
+    // 同一次多选保存的几个词（时间相差几毫秒、事件与天气相同）合并成一条展示
+    const merged: CheckIn[][] = [];
+    for (const entry of byDay.get(groupDay)!) {
+      const lead = merged.length ? merged[merged.length - 1][0] : undefined;
+      const same =
+        lead &&
+        Math.abs(lead.at - entry.at) < 10_000 &&
+        (lead.note || "") === (entry.note || "") &&
+        (lead.weather || "") === (entry.weather || "");
+      if (same) merged[merged.length - 1].push(entry);
+      else merged.push([entry]);
+    }
+
+    const remaining = Math.max(0, MAX_ENTRIES - shown);
+    if (merged.length > remaining) truncated = true;
+    shown += Math.min(remaining, merged.length);
+    const items = merged
+      .slice(0, remaining)
+      .map((group) => {
+        const lead = group[0];
+        const icons = state.settings.checkinIcons
+          ? group
+              .map((entry) => {
+                const file = wordIconFile(entry.word);
+                return file ? `<img class="mood-emoji-img" src="${iconUrl(file)}" alt="">` : "";
+              })
+              .join("")
+          : "";
+        const wordsText = escapeHtml(group.map((entry) => entry.word).join("、"));
+        const weatherFile = lead.weather ? weatherIconFile(lead.weather) : "";
+        const weatherIcon = weatherFile ? `<img class="mood-emoji-img" src="${iconUrl(weatherFile)}" alt="">` : "";
+        const note = lead.note ? `<div class="mood-crec__note">${escapeHtml(lead.note)}</div>` : "";
+        return `<div class="mood-crec__item"><div class="mood-crec__line"><span class="mood-crec__meta">${formatTime(lead.at)}</span><span class="mood-crec__weather">${weatherIcon}</span><span class="mood-crec__word">${icons}<span>${wordsText}</span></span></div>${note}</div>`;
+      })
+      .join("");
+    groups.push(`<div class="mood-crec__day"><div class="mood-crec__dayhead">${head}</div>${items}</div>`);
+  }
+
+  const body = groups.length
+    ? groups.join("") + (truncated ? `<div class="mood-setting-note">只显示最近 ${MAX_ENTRIES} 条</div>` : "")
+    : `<div class="mood-empty">${escapeHtml(t("checkinRecordsEmpty"))}</div>`;
+
+  let title = t("checkinRecordsTitle");
+  if (day) {
+    const date = new Date(day);
+    title = `${date.getMonth() + 1}月${date.getDate()}日 打卡`;
+  }
+
+  new Dialog({
+    title: escapeHtml(title),
+    content: `<div class="mood-dialog mood-crec">${body}</div>`,
+    width: isMobile() ? "92vw" : "420px",
+    height: isMobile() ? "80vh" : "520px",
   });
 }

@@ -1958,3 +1958,85 @@
     padding: 0 14px;
   }
 }
+
+// 侧栏底部的打卡 chip 可点，打开打卡记录
+.mood-chip--link {
+  cursor: pointer;
+
+  &:hover {
+    color: var(--b3-theme-primary);
+  }
+}
+
+// 两周打卡带：有打卡的列可点，打开当天明细
+.mood-strip__col--open {
+  cursor: pointer;
+
+  &:hover .mood-strip__label {
+    color: var(--b3-theme-primary);
+  }
+}
+
+// 打卡记录浏览弹窗：按天分组，事件完整展示
+.mood-crec {
+  height: 100%;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+
+  &__dayhead {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--b3-theme-on-surface);
+    padding-bottom: 4px;
+    border-bottom: 1px dashed var(--b3-border-color);
+  }
+
+  &__item {
+    padding: 5px 0;
+    border-bottom: 1px dashed var(--b3-border-color);
+
+    &:last-child {
+      border-bottom: none;
+    }
+  }
+
+  &__line {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__word {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    min-width: 0;
+  }
+
+  &__meta {
+    flex: none;
+    font-size: 11px;
+    color: var(--b3-theme-on-surface);
+    font-variant-numeric: tabular-nums;
+  }
+
+  // 天气独占一列，没记天气也占位，保证心情列竖向对齐
+  &__weather {
+    flex: none;
+    width: 20px;
+    display: inline-flex;
+    justify-content: center;
+  }
+
+  &__note {
+    margin-top: 3px;
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--b3-theme-on-background);
+    white-space: pre-wrap;
+  }
+}

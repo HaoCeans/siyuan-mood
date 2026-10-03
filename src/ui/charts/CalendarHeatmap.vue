@@ -37,7 +37,7 @@
           v-for="(cell, ci) in week"
           :key="`${wi}-${ci}`"
           class="mood-cal__cell"
-          :class="{ 'mood-cal__cell--open': cell.inMonth && cell.hasRecord }"
+          :class="{ 'mood-cal__cell--open': cell.inMonth && (cell.hasRecord || cell.iconFiles.length > 0) }"
           :style="cellStyle(cell)"
           :title="cellTitle(cell)"
           @click="openDay(cell)"
@@ -75,8 +75,10 @@ import { t } from '@/plugin'
 const props = defineProps<{
   records: QuizRecord[];
   checkins: CheckIn[];
-  /** 点击有记录的格子时回调，参数是当天的 0 点时间戳 */
+  /** 点击有正式测评的格子时回调，参数是当天的 0 点时间戳 */
   onOpenDay?: (day: number) => void;
+  /** 点击纯打卡日（没有测评）的格子时回调，打开当天打卡明细 */
+  onOpenCheckins?: (day: number) => void;
 }>()
 
 const WEEK = ['一', '二', '三', '四', '五', '六', '日']
@@ -87,7 +89,9 @@ const month = computed<CalendarMonth>(() => monthCalendarAt(props.records, props
 const isCurrent = computed(() => offset.value === 0)
 
 function openDay(cell: CalendarDay): void {
-  if (cell.inMonth && cell.hasRecord) props.onOpenDay?.(cell.day)
+  if (!cell.inMonth) return
+  if (cell.hasRecord) props.onOpenDay?.(cell.day)
+  else if (cell.iconFiles.length) props.onOpenCheckins?.(cell.day)
 }
 
 function cellStyle(cell: CalendarDay): Record<string, string> {

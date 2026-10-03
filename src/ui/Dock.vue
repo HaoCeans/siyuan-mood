@@ -145,8 +145,9 @@
     <div class="mood-footer">
       <span
         v-if="lastCheckin"
-        class="mood-chip mood-chip--muted"
+        class="mood-chip mood-chip--muted mood-chip--link"
         :title="t('checkinLatest')"
+        @click="openCheckinRecords"
       >{{ lastCheckin.word }} · {{ lastCheckinTime }}</span>
       <span>{{ nextText }}</span>
       <span class="spacer" style="flex: 1" />
@@ -171,7 +172,7 @@ import StatsView from '@/ui/StatsView.vue'
 import { moodLevel } from '@/quiz/score'
 import { latestRecord, latestCheckIn, sortedRecords, state, type ViewTab } from '@/store'
 import { computeInterval, daysUntilDue, nextDueAt } from '@/stats/interval'
-import { openQuizDialog, openCheckInDialog } from '@/ui/dialogs'
+import { openQuizDialog, openCheckInDialog, openCheckinRecordsDialog } from '@/ui/dialogs'
 import { formatTime } from '@/utils/dom'
 import type { QuizRecord } from '@/types/mood'
 
@@ -240,6 +241,10 @@ function startQuiz(): void {
 
 function openRecord(id: string): void {
   state.detailId = id
+}
+
+function openCheckinRecords(): void {
+  openCheckinRecordsDialog()
 }
 
 function openSettings(): void {

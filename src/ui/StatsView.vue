@@ -77,6 +77,7 @@
         </div>
       </div>
 
+
       <div
         v-if="records.length"
         class="mood-section"
@@ -98,8 +99,6 @@
           {{ t('chartExtreme').replace('{low}', String(extremes.low.score)).replace('{lowAt}', formatMonthDay(extremes.low.at)).replace('{high}', String(extremes.high.score)).replace('{highAt}', formatMonthDay(extremes.high.at)) }}
         </div>
       </div>
-
-
       <div class="mood-section">
         <div class="mood-section__title">
           <span>{{ t('chartCalendar') }}</span>
@@ -108,6 +107,7 @@
           :records="sortedRecords()"
           :checkins="state.checkins"
           :on-open-day="openDay"
+          :on-open-checkins="openCheckins"
         />
       </div>
 
@@ -176,6 +176,7 @@
             <CheckinStrip
               :checkins="state.checkins"
               :days="14"
+              :on-open-day="openCheckins"
               style="margin-top: 8px"
             />
           </div>
@@ -327,7 +328,7 @@ import {
 } from '@/stats/aggregate'
 import { moodLevel } from '@/quiz/score'
 import { latestRecord, sortedRecords, state } from '@/store'
-import { openRecordDialog } from '@/ui/dialogs'
+import { openCheckinRecordsDialog, openRecordDialog } from '@/ui/dialogs'
 import { dayStart, formatMonthDay } from '@/utils/dom'
 import { formatDateTime } from '@/utils/dom'
 import { md2html } from '@/utils/lute'
@@ -411,6 +412,11 @@ function html(markdown: string): string {
 function openDay(day: number): void {
   const target = sortedRecords().find((record) => dayStart(record.finishedAt) === day)
   if (target) openRecordDialog(target.id, false)
+}
+
+/** 点纯打卡日 / 两周打卡带：打开当天打卡明细 */
+function openCheckins(day: number): void {
+  openCheckinRecordsDialog(day)
 }
 
 async function makeReport(): Promise<void> {
